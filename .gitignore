@@ -1,0 +1,19 @@
+# Environment / secrets
+.env
+*.env.*
+config.local.js
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Node (for future use)
+node_modules/
