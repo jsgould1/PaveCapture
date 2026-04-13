@@ -381,6 +381,45 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   border-top:1px solid var(--border);
   padding-bottom:max(8px,env(safe-area-inset-bottom));
 }
+
+/* ═══ MARKING INVENTORY ROWS ═══ */
+.inv-section{margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.inv-header{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.inv-header .inv-icon{font-size:16px;}
+.inv-header .inv-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;flex:1;}
+.inv-header .inv-count{font-size:11px;color:var(--accent);font-weight:700;}
+.inv-header .inv-chev{font-size:12px;color:var(--muted);transition:transform .2s;}
+.inv-section.collapsed .inv-body{display:none;}
+.inv-section.collapsed .inv-chev{transform:rotate(-90deg);}
+.inv-body{padding:8px;}
+.inv-row{
+  background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:10px;margin-bottom:8px;position:relative;
+}
+.inv-row .inv-del{
+  position:absolute;top:6px;right:6px;background:none;border:none;
+  color:var(--muted);font-size:16px;padding:2px 6px;cursor:pointer;
+}
+.inv-row .inv-del:active{color:var(--red);}
+.inv-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.inv-fields.three-col{grid-template-columns:1fr 1fr 1fr;}
+.inv-field{display:flex;flex-direction:column;gap:2px;}
+.inv-field.full{grid-column:1/-1;}
+.inv-field label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.inv-field input,.inv-field select,.inv-field textarea{
+  padding:7px 8px;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;
+}
+.inv-field input:focus,.inv-field select:focus,.inv-field textarea:focus{border-color:var(--accent);outline:none;}
+.inv-add-btn{
+  width:100%;padding:10px;background:none;border:1px dashed var(--border);
+  border-radius:8px;color:var(--accent);font-size:12px;font-weight:700;
+  cursor:pointer;margin-top:4px;
+}
+.inv-add-btn:active{background:var(--surface);}
 </style>
 </head>
 <body>
@@ -414,7 +453,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <span id="heading-arrow" style="display:inline-block;transition:transform .3s">↑</span>
         <span id="heading-text">—°</span>
       </div>
-      <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🚛 <span id="equip-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
+      <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🛣️ <span id="marking-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
       <button class="fit-btn" onclick="fitAllMarkers()">⊙ Fit All</button>
       <div id="nm-pill" class="gps-pill" style="display:none;color:#f59e0b">📸 <span id="nm-pill-text">Nearmap</span></div>
     </div>
@@ -468,9 +507,9 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <span class="icon">🗂</span>
       <span class="label">Import</span>
     </button>
-    <button class="action-btn" id="btn-equip" onclick="captureEquipment()" style="background:#7c3aed;color:#fff;">
-      <span class="icon">🚛</span>
-      <span class="label">Equipment</span>
+    <button class="action-btn" id="btn-marking" onclick="captureMarking()" style="background:#3b82f6;color:#fff;">
+      <span class="icon">🛣️</span>
+      <span class="label">Markings</span>
     </button>
     <button class="action-btn" id="btn-notes" onclick="openNotesPanel()" style="background:#0ea5e9;color:#fff;">
       <span class="icon">📝</span>
@@ -485,8 +524,8 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <!-- Hidden file inputs -->
   <input type="file" id="cam-input" accept="image/*" capture="environment" style="display:none" multiple>
   <input type="file" id="import-input" accept="image/*" style="display:none" multiple>
-  <input type="file" id="equip-cam-input" accept="image/*" capture="environment" style="display:none">
-  <input type="file" id="equip-import-input" accept="image/*" style="display:none" multiple>
+  <input type="file" id="marking-cam-input" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="marking-import-input" accept="image/*" style="display:none" multiple>
 
 </div>
 
@@ -595,7 +634,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <div id="gal-header">
     <div class="title">Photo Gallery</div>
     <span style="font-size:11px;color:var(--muted)" id="gal-count">0 photos</span>
-    <button onclick="closeGallery();setTimeout(openEquipList,100)" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">🚛 Equipment</button>
+    <button onclick="closeGallery();setTimeout(openMarkingList,100)" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">🛣️ Markings</button>
     <div style="flex:1"></div>
     <button id="gal-close" onclick="closeGallery()">✕</button>
   </div>
@@ -720,96 +759,95 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   </div>
 </div>
 
-<!-- ═══ EQUIPMENT DETAIL MODAL ═══ -->
-<div id="equip-modal" style="display:none;position:fixed;inset:0;z-index:900;background:var(--bg);flex-direction:column;overflow:hidden;">
+<!-- ═══ MARKING DETAIL MODAL ═══ -->
+<div id="marking-modal" style="display:none;position:fixed;inset:0;z-index:900;background:var(--bg);flex-direction:column;overflow:hidden;">
   <div style="background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;padding-top:max(10px,env(safe-area-inset-top));">
-    <div style="font-weight:700;font-size:14px;flex:1" id="equip-title">🚛 Equipment</div>
-    <button onclick="closeEquipModal()" style="background:none;border:none;color:var(--muted);font-size:22px;padding:4px 8px">✕</button>
+    <div style="font-weight:700;font-size:14px;flex:1" id="marking-title">🛣️ Pavement Marking</div>
+    <button onclick="closeMarkingModal()" style="background:none;border:none;color:var(--muted);font-size:22px;padding:4px 8px">✕</button>
   </div>
   <div style="flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch;">
-    <div id="equip-thumb-wrap" style="width:100%;aspect-ratio:4/3;background:var(--surface);border-radius:12px;overflow:hidden;margin-bottom:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);"><span style="color:var(--muted);font-size:48px">🚛</span></div>
-    <div id="equip-gps-tags" class="pm-gps-bar" style="margin-bottom:14px"></div>
+    <div id="marking-thumb-wrap" style="width:100%;aspect-ratio:4/3;background:var(--surface);border-radius:12px;overflow:hidden;margin-bottom:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);"><span style="color:var(--muted);font-size:48px">🛣️</span></div>
+    <div id="marking-gps-tags" class="pm-gps-bar" style="margin-bottom:14px"></div>
     <!-- AI Identify -->
     <div class="fm-group">
-      <button id="equip-ai-btn" onclick="aiIdentifyEquip()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
-        🤖 <span id="equip-ai-label">AI Identify Equipment</span>
+      <button id="marking-ai-btn" onclick="aiIdentifyMarking()" style="width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6,#0ea5e9);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
+        🤖 <span id="marking-ai-label">AI Identify Marking</span>
       </button>
-      <div id="equip-ai-status" style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center"></div>
+      <div id="marking-ai-status" style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center"></div>
+    </div>
+
+    <!-- Area Info -->
+    <div class="fm-group">
+      <div class="fm-label">📍 Section / Area Name</div>
+      <input type="text" class="fm-input" id="marking-area-name" placeholder="e.g. Lot B, Main Entrance, North Dock" list="site-locations">
     </div>
     <div class="fm-group">
-      <div class="fm-label">Equipment Type</div>
-      <select class="fm-select" id="equip-type">
+      <div class="fm-label">Overall Condition</div>
+      <select class="fm-select" id="marking-condition">
         <option value="">— Select —</option>
-        <option>Forklift</option>
-        <option>Gantry Crane</option>
-        <option>Side Loader</option>
-        <option>Reach Stacker</option>
-        <option>Container Handler</option>
-        <option>Straddle Carrier</option>
-        <option>Mobile Crane</option>
-        <option>Boom Lift</option>
-        <option>Scissor Lift</option>
-        <option>Excavator</option>
-        <option>Wheel Loader</option>
-        <option>Skid Steer</option>
-        <option>Dump Truck</option>
-        <option>Flatbed Truck</option>
-        <option>Paver</option>
-        <option>Roller/Compactor</option>
-        <option>Milling Machine</option>
-        <option>Sweeper</option>
-        <option>Other</option>
+        <option value="Good">Good — Clearly visible</option>
+        <option value="Fair">Fair — Moderately worn</option>
+        <option value="Poor">Poor — Severely worn</option>
+        <option value="Missing">Missing — Absent or gone</option>
       </select>
     </div>
+
+    <!-- Parking Inventory -->
+    <div class="inv-section" id="marking-parking-section">
+      <div class="inv-header" onclick="toggleInvSection('marking-parking-section')">
+        <span class="inv-icon">🅿️</span>
+        <span class="inv-title">Parking Inventory</span>
+        <span class="inv-count" id="marking-parking-count">0 rows</span>
+        <span class="inv-chev">▾</span>
+      </div>
+      <div class="inv-body">
+        <div id="marking-parking-rows"></div>
+        <button class="inv-add-btn" onclick="addParkingRow()">+ Add Parking Row</button>
+      </div>
+    </div>
+
+    <!-- Lines & Bars Inventory -->
+    <div class="inv-section" id="marking-lines-section">
+      <div class="inv-header" onclick="toggleInvSection('marking-lines-section')">
+        <span class="inv-icon">━</span>
+        <span class="inv-title">Lines & Bars</span>
+        <span class="inv-count" id="marking-lines-count">0 rows</span>
+        <span class="inv-chev">▾</span>
+      </div>
+      <div class="inv-body">
+        <div id="marking-line-rows"></div>
+        <button class="inv-add-btn" onclick="addLineRow()">+ Add Line Row</button>
+      </div>
+    </div>
+
+    <!-- Signs & Comments -->
     <div class="fm-group">
-      <div class="fm-label">Make</div>
-      <input type="text" class="fm-input" id="equip-make" placeholder="e.g. Caterpillar, Hyster, Liebherr">
+      <div class="fm-label">🪧 Sign Comments</div>
+      <textarea class="fm-input" id="marking-sign-comments" rows="2" placeholder="Missing signs, sign types, conditions..."></textarea>
     </div>
     <div class="fm-group">
-      <div class="fm-label">Model</div>
-      <input type="text" class="fm-input" id="equip-model" placeholder="e.g. DP70N, RTG 8">
-    </div>
-    <div class="fm-group">
-      <div class="fm-label">Unit ID / Serial #</div>
-      <input type="text" class="fm-input" id="equip-unit" placeholder="e.g. FL-042, S/N 12345">
-    </div>
-    <div class="fm-group">
-      <div class="fm-label">Condition</div>
-      <select class="fm-select" id="equip-condition">
-        <option value="">— Select —</option>
-        <option value="Good">Good — Operational</option>
-        <option value="Fair">Fair — Minor issues</option>
-        <option value="Poor">Poor — Needs repair</option>
-        <option value="Out of Service">Out of Service</option>
-      </select>
-    </div>
-    <div class="fm-group">
-      <div class="fm-label">📍 Location</div>
-      <input type="text" class="fm-input" id="equip-location" placeholder="e.g. Container Yard, Berth D Apron" list="site-locations">
-    </div>
-    <div class="fm-group">
-      <div class="fm-label">Notes</div>
-      <textarea class="fm-input" id="equip-notes" rows="3" placeholder="Observations, damage, operating status..."></textarea>
+      <div class="fm-label">General Notes</div>
+      <textarea class="fm-input" id="marking-notes" rows="2" placeholder="Additional observations..."></textarea>
     </div>
     <div class="fm-group">
       <div class="fm-label">📷 Additional Photos</div>
-      <div id="equip-extra-photos" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;min-height:30px;"></div>
-      <button onclick="addEquipPhoto()" style="margin-top:6px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:12px;font-weight:700;width:100%;">+ Add More Photos</button>
+      <div id="marking-extra-photos" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;min-height:30px;"></div>
+      <button onclick="addMarkingPhoto()" style="margin-top:6px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:12px;font-weight:700;width:100%;">+ Add More Photos</button>
     </div>
-    <button onclick="saveEquipment()" style="width:100%;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;margin-top:6px">Save Equipment</button>
-    <button onclick="deleteEquipment()" id="equip-delete-btn" style="display:none;width:100%;padding:10px;background:none;color:var(--red);border:1px solid var(--red);border-radius:10px;font-size:13px;font-weight:600;margin-top:8px">🗑 Delete</button>
+    <button onclick="saveMarking()" style="width:100%;padding:14px;background:#3b82f6;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;margin-top:6px">Save Marking</button>
+    <button onclick="deleteMarking()" id="marking-delete-btn" style="display:none;width:100%;padding:10px;background:none;color:var(--red);border:1px solid var(--red);border-radius:10px;font-size:13px;font-weight:600;margin-top:8px">🗑 Delete</button>
   </div>
 </div>
 
-<!-- ═══ EQUIPMENT LIST MODAL ═══ -->
-<div id="equip-list-modal" style="display:none;position:fixed;inset:0;z-index:850;background:var(--bg);flex-direction:column;overflow:hidden;">
+<!-- ═══ MARKING LIST MODAL ═══ -->
+<div id="marking-list-modal" style="display:none;position:fixed;inset:0;z-index:850;background:var(--bg);flex-direction:column;overflow:hidden;">
   <div style="background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;padding-top:max(10px,env(safe-area-inset-top));">
-    <div style="font-weight:700;font-size:14px;flex:1">🚛 Equipment Log</div>
-    <span style="font-size:11px;color:var(--muted)" id="equip-list-count">0</span>
-    <button onclick="closeEquipList()" style="background:none;border:none;color:var(--muted);font-size:22px;padding:4px 8px">✕</button>
+    <div style="font-weight:700;font-size:14px;flex:1">🛣️ Marking Log</div>
+    <span style="font-size:11px;color:var(--muted)" id="marking-list-count">0</span>
+    <button onclick="closeMarkingList()" style="background:none;border:none;color:var(--muted);font-size:22px;padding:4px 8px">✕</button>
   </div>
   <div style="flex:1;overflow-y:auto;padding:10px;-webkit-overflow-scrolling:touch;">
-    <div class="gal-grid" id="equip-list-grid"></div>
+    <div class="gal-grid" id="marking-list-grid"></div>
   </div>
 </div>
 
@@ -1032,7 +1070,7 @@ var _zoneDrawing=false,_zoneDrawVerts=[],_zoneDrawDots=[],_zoneDrawLine=null;
 var APP={
   nmKey:NM_DEFAULT_KEY,nmDate:'',claudeKey:CLAUDE_DEFAULT_KEY,
   watermark:{enabled:true,text:'Manchester Terminal — 10000 Manchester St, Houston TX',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70},
-  equipment:[], // {id,type,make,model,unit,condition,notes,lat,lng,dir,gpsSource,thumb,extraPhotoIds,ts,aiStatus}
+  markings:[], // {id,areaName,condition,parkingRows:[],lineRows:[],signComments,notes,lat,lng,dir,gpsSource,thumb,extraPhotoIds,zone,ts,aiStatus,hasHD}
   fieldNotes:[], // {id,type:'text'|'voice',text,lat,lng,zone,duration,hasAudio,ts}
   photos:[],
   audioMemos:[],
@@ -1047,7 +1085,7 @@ function save(){
     var clone=JSON.parse(JSON.stringify(APP));
     clone.photos.forEach(function(p){delete p.audioDataUrl;delete p._hdCached;delete p._lastAiResult;});
     clone.audioMemos.forEach(function(a){delete a.dataUrl;});
-    clone.equipment.forEach(function(e){delete e._hdCached;});
+    clone.markings.forEach(function(m){delete m._hdCached;});
     var json=JSON.stringify(clone);
     // Primary: IndexedDB (persistent, not subject to Safari 7-day purge)
     idbPut('app_data',json).catch(function(e){console.warn('IDB save failed:',e);});
@@ -1083,12 +1121,12 @@ function loadFromIDB(){
       if(d.photos&&d.photos.length>=APP.photos.length){
         Object.assign(APP,d);
         if(!APP.repairAreas)APP.repairAreas=[];
-        if(!APP.equipment)APP.equipment=[];
+        if(!APP.markings)APP.markings=[];
         if(!APP.fieldNotes)APP.fieldNotes=[];
         if(!APP.photoCounter)APP.photoCounter=APP.photos.length;
         // Refresh UI with restored data
-        updateCount();updateEquipCount();updateNotesCount();
-        rebuildMarkers();rebuildRepairPolygons();rebuildEquipMarkers();rebuildNoteMarkers();
+        updateCount();updateMarkingCount();updateNotesCount();
+        rebuildMarkers();rebuildRepairPolygons();rebuildMarkingMarkers();rebuildNoteMarkers();
         renderGallery();
         console.log('Restored '+APP.photos.length+' photos from IndexedDB');
       }
@@ -1258,7 +1296,7 @@ function initMap(){
 
   rebuildMarkers();
   rebuildRepairPolygons();
-  rebuildEquipMarkers();
+  rebuildMarkingMarkers();
   rebuildNoteMarkers();
   // Zones load async from IDB — drawn after loadZonesAsync() completes
 }
@@ -3360,7 +3398,7 @@ function fitAllMarkers(){
   var bounds=[];
   APP.photos.forEach(function(p){if(p.lat&&p.lng)bounds.push([p.lat,p.lng]);});
   APP.repairAreas.forEach(function(a){a.vertices.forEach(function(v){bounds.push(v);});});
-  APP.equipment.forEach(function(eq){if(eq.lat&&eq.lng)bounds.push([eq.lat,eq.lng]);});
+  APP.markings.forEach(function(mk){if(mk.lat&&mk.lng)bounds.push([mk.lat,mk.lng]);});
   APP.fieldNotes.forEach(function(n){if(n.lat&&n.lng)bounds.push([n.lat,n.lng]);});
   if(!bounds.length){
     if(_lat&&_lng)MAP.setView([_lat,_lng],18);
@@ -3720,9 +3758,11 @@ function exportData(){
     audioMemos:APP.audioMemos.map(function(a){
       return{timestamp:a.ts,lat:a.lat,lng:a.lng,duration:a.duration+'s'};
     }),
-    equipment:APP.equipment.map(function(eq){
-      return{seqId:eq.seqId,type:eq.type,make:eq.make,model:eq.model,unit:eq.unit,condition:eq.condition,
-        location:eq.location,notes:eq.notes,lat:eq.lat,lng:eq.lng,timestamp:eq.ts};
+    markings:APP.markings.map(function(mk){
+      return{seqId:mk.seqId,areaName:mk.areaName,condition:mk.condition,
+        parkingRows:mk.parkingRows||[],lineRows:mk.lineRows||[],
+        signComments:mk.signComments||'',notes:mk.notes,
+        lat:mk.lat,lng:mk.lng,timestamp:mk.ts};
     }),
     fieldNotes:APP.fieldNotes.map(function(n){
       return{type:n.type,text:n.text,zone:n.zone||'',lat:n.lat,lng:n.lng,
@@ -3738,7 +3778,7 @@ function exportData(){
       fieldNotes:APP.fieldNotes.length,
       repairAreas:APP.repairAreas.length,
       totalRepairSqFt:APP.repairAreas.reduce(function(s,a){return s+a.area_sqft;},0),
-      equipment:APP.equipment.length,
+      markings:APP.markings.length,
       distressTypes:countDistresses()
     }
   };
@@ -3756,10 +3796,19 @@ function exportData(){
     rcsv+=[q(a.name),q(a.type),a.priority,a.area_sqft,a.perimeter_ft,a.vertices.length,q(a.notes),a.ts].join(',')+'\n';
   });
 
-  // CSV for equipment
-  var ecsv='Seq ID,Type,Make,Model,Unit ID,Condition,Location,Lat,Lng,Notes,Timestamp\n';
-  APP.equipment.forEach(function(eq){
-    ecsv+=[(eq.seqId||''),q(eq.type),q(eq.make),q(eq.model),q(eq.unit),eq.condition,q(eq.location),eq.lat||'',eq.lng||'',q(eq.notes),eq.ts].join(',')+'\n';
+  // CSV for markings — parking rows
+  var mpcsv='Seq ID,Area Name,Condition,# Spots,Category,Other/Detail,Paint Size,Paint Color,Paint Type,Comments,Lat,Lng,Timestamp\n';
+  APP.markings.forEach(function(mk){
+    (mk.parkingRows||[]).forEach(function(r){
+      mpcsv+=[(mk.seqId||''),q(mk.areaName||''),mk.condition||'',r.spots||0,r.category||'',q(r.other||''),q(r.paintSize||''),r.paintColor||'',r.paintType||'',q(r.comments||''),mk.lat||'',mk.lng||'',mk.ts].join(',')+'\n';
+    });
+  });
+  // CSV for markings — line rows
+  var mlcsv='Seq ID,Area Name,Condition,Number,Type,Width,Length,Color,Comments,Lat,Lng,Timestamp\n';
+  APP.markings.forEach(function(mk){
+    (mk.lineRows||[]).forEach(function(r){
+      mlcsv+=[(mk.seqId||''),q(mk.areaName||''),mk.condition||'',r.number||0,r.type||'',q(r.width||''),q(r.length||''),r.color||'',q(r.comments||''),mk.lat||'',mk.lng||'',mk.ts].join(',')+'\n';
+    });
   });
 
   dl(JSON.stringify(data,null,2),'pavecapture_'+dateStamp()+'.json','application/json');
@@ -3767,8 +3816,9 @@ function exportData(){
   if(APP.repairAreas.length){
     setTimeout(function(){dl(rcsv,'pavecapture_repairs_'+dateStamp()+'.csv','text/csv');},800);
   }
-  if(APP.equipment.length){
-    setTimeout(function(){dl(ecsv,'pavecapture_equipment_'+dateStamp()+'.csv','text/csv');},1200);
+  if(APP.markings.length){
+    setTimeout(function(){dl(mpcsv,'pavecapture_marking_parking_'+dateStamp()+'.csv','text/csv');},1200);
+    setTimeout(function(){dl(mlcsv,'pavecapture_marking_lines_'+dateStamp()+'.csv','text/csv');},1600);
   }
   if(APP.fieldNotes.length){
     var ncsv='Time,Type,Zone,Lat,Lng,Duration,Has Audio,Text\n';
@@ -3779,57 +3829,141 @@ function exportData(){
   }
 }
 
-/* ═══ EQUIPMENT MODULE ═══ */
-var _editingEquipId=null,_equipExtraPhotos=[],_equipMarkers={};
+/* ═══ PAVEMENT MARKINGS MODULE ═══ */
+var _editingMarkingId=null,_markingExtraPhotos=[],_markingMarkers={};
 
-function captureEquipment(){
-  // Prompt: Capture or Import?
+/* ── Inventory section toggle ── */
+function toggleInvSection(sectionId){
+  document.getElementById(sectionId).classList.toggle('collapsed');
+}
+
+/* ── Dynamic Parking Rows ── */
+function addParkingRow(data){
+  var d=data||{};
+  var container=document.getElementById('marking-parking-rows');
+  var row=document.createElement('div');
+  row.className='inv-row';
+  row.innerHTML='<button class="inv-del" onclick="this.parentElement.remove();updateParkingCount()">✕</button>'
+    +'<div class="inv-fields">'
+    +'<div class="inv-field"><label># Spots</label><input type="number" class="pk-spots" min="0" value="'+(d.spots||'')+'"></div>'
+    +'<div class="inv-field"><label>Category</label><select class="pk-category"><option value="">—</option><option'+(d.category==='Car'?' selected':'')+'>Car</option><option'+(d.category==='RV'?' selected':'')+'>RV</option><option'+(d.category==='Bus'?' selected':'')+'>Bus</option><option'+(d.category==='Handicap'?' selected':'')+'>Handicap</option><option'+(d.category==='Other'?' selected':'')+'>Other</option></select></div>'
+    +'<div class="inv-field"><label>Other / Detail</label><input type="text" class="pk-other" value="'+esc(d.other||'')+'" placeholder="Specify if Other"></div>'
+    +'<div class="inv-field"><label>Paint Size</label><input type="text" class="pk-paint-size" value="'+esc(d.paintSize||'')+'" placeholder="e.g. 4 in"></div>'
+    +'<div class="inv-field"><label>Paint Color</label><select class="pk-paint-color"><option value="">—</option><option'+(d.paintColor==='White'?' selected':'')+'>White</option><option'+(d.paintColor==='Yellow'?' selected':'')+'>Yellow</option><option'+(d.paintColor==='Red'?' selected':'')+'>Red</option><option'+(d.paintColor==='Blue'?' selected':'')+'>Blue</option><option'+(d.paintColor==='Other'?' selected':'')+'>Other</option></select></div>'
+    +'<div class="inv-field"><label>Paint Type</label><select class="pk-paint-type"><option value="">—</option><option'+(d.paintType==='Latex'?' selected':'')+'>Latex</option><option'+(d.paintType==='Thermoplastic'?' selected':'')+'>Thermoplastic</option><option'+(d.paintType==='Epoxy'?' selected':'')+'>Epoxy</option><option'+(d.paintType==='Tape'?' selected':'')+'>Tape</option><option'+(d.paintType==='Other'?' selected':'')+'>Other</option></select></div>'
+    +'<div class="inv-field full"><label>Comments (signs, etc.)</label><input type="text" class="pk-comments" value="'+esc(d.comments||'')+'" placeholder="Missing signs, sign type, etc."></div>'
+    +'</div>';
+  container.appendChild(row);
+  updateParkingCount();
+}
+
+function updateParkingCount(){
+  var n=document.querySelectorAll('#marking-parking-rows .inv-row').length;
+  document.getElementById('marking-parking-count').textContent=n+' row'+(n!==1?'s':'');
+}
+
+function collectParkingRows(){
+  var rows=[];
+  document.querySelectorAll('#marking-parking-rows .inv-row').forEach(function(row){
+    rows.push({
+      spots:parseInt(row.querySelector('.pk-spots').value)||0,
+      category:row.querySelector('.pk-category').value,
+      other:row.querySelector('.pk-other').value,
+      paintSize:row.querySelector('.pk-paint-size').value,
+      paintColor:row.querySelector('.pk-paint-color').value,
+      paintType:row.querySelector('.pk-paint-type').value,
+      comments:row.querySelector('.pk-comments').value
+    });
+  });
+  return rows;
+}
+
+/* ── Dynamic Line Rows ── */
+function addLineRow(data){
+  var d=data||{};
+  var container=document.getElementById('marking-line-rows');
+  var row=document.createElement('div');
+  row.className='inv-row';
+  row.innerHTML='<button class="inv-del" onclick="this.parentElement.remove();updateLineCount()">✕</button>'
+    +'<div class="inv-fields">'
+    +'<div class="inv-field"><label>Number</label><input type="number" class="ln-number" min="0" value="'+(d.number||'')+'"></div>'
+    +'<div class="inv-field"><label>Type</label><select class="ln-type"><option value="">—</option><option'+(d.type==='Edge Line'?' selected':'')+'>Edge Line</option><option'+(d.type==='Centerline'?' selected':'')+'>Centerline</option><option'+(d.type==='Stop Bar'?' selected':'')+'>Stop Bar</option><option'+(d.type==='Crosswalk'?' selected':'')+'>Crosswalk</option><option'+(d.type==='Lane Line'?' selected':'')+'>Lane Line</option><option'+(d.type==='Turn Arrow'?' selected':'')+'>Turn Arrow</option><option'+(d.type==='Legend/Text'?' selected':'')+'>Legend/Text</option><option'+(d.type==='Other'?' selected':'')+'>Other</option></select></div>'
+    +'<div class="inv-field"><label>Width</label><input type="text" class="ln-width" value="'+esc(d.width||'')+'" placeholder="e.g. 4 in"></div>'
+    +'<div class="inv-field"><label>Length</label><input type="text" class="ln-length" value="'+esc(d.length||'')+'" placeholder="e.g. 200 ft"></div>'
+    +'<div class="inv-field"><label>Color</label><select class="ln-color"><option value="">—</option><option'+(d.color==='White'?' selected':'')+'>White</option><option'+(d.color==='Yellow'?' selected':'')+'>Yellow</option><option'+(d.color==='Red'?' selected':'')+'>Red</option><option'+(d.color==='Blue'?' selected':'')+'>Blue</option><option'+(d.color==='Other'?' selected':'')+'>Other</option></select></div>'
+    +'<div class="inv-field full"><label>Comments</label><input type="text" class="ln-comments" value="'+esc(d.comments||'')+'" placeholder="Condition, notes..."></div>'
+    +'</div>';
+  container.appendChild(row);
+  updateLineCount();
+}
+
+function updateLineCount(){
+  var n=document.querySelectorAll('#marking-line-rows .inv-row').length;
+  document.getElementById('marking-lines-count').textContent=n+' row'+(n!==1?'s':'');
+}
+
+function collectLineRows(){
+  var rows=[];
+  document.querySelectorAll('#marking-line-rows .inv-row').forEach(function(row){
+    rows.push({
+      number:parseInt(row.querySelector('.ln-number').value)||0,
+      type:row.querySelector('.ln-type').value,
+      width:row.querySelector('.ln-width').value,
+      length:row.querySelector('.ln-length').value,
+      color:row.querySelector('.ln-color').value,
+      comments:row.querySelector('.ln-comments').value
+    });
+  });
+  return rows;
+}
+
+/* ── Capture / Import ── */
+function captureMarking(){
   var overlay=document.createElement('div');
-  overlay.id='equip-prompt';
+  overlay.id='marking-prompt';
   overlay.style.cssText='position:fixed;inset:0;z-index:999;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)';
   overlay.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:320px;text-align:center">'
-    +'<div style="font-size:36px;margin-bottom:8px">🚛</div>'
-    +'<h2 style="font-size:16px;color:#7c3aed;margin-bottom:16px">Log Equipment</h2>'
-    +'<button onclick="equipCapture()" style="width:100%;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;margin-bottom:10px">📷 Take Photo</button>'
-    +'<button onclick="equipImport()" style="width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;margin-bottom:10px">🗂 Import from Camera Roll</button>'
-    +'<button onclick="closeEquipPrompt()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600">Cancel</button>'
+    +'<div style="font-size:36px;margin-bottom:8px">🛣️</div>'
+    +'<h2 style="font-size:16px;color:#3b82f6;margin-bottom:16px">Log Pavement Marking</h2>'
+    +'<button onclick="markingCapture()" style="width:100%;padding:14px;background:#3b82f6;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;margin-bottom:10px">📷 Take Photo</button>'
+    +'<button onclick="markingImport()" style="width:100%;padding:14px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;margin-bottom:10px">🗂 Import from Camera Roll</button>'
+    +'<button onclick="closeMarkingPrompt()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600">Cancel</button>'
     +'</div>';
   document.body.appendChild(overlay);
 }
 
-function closeEquipPrompt(){
-  var p=document.getElementById('equip-prompt');if(p)p.remove();
+function closeMarkingPrompt(){
+  var p=document.getElementById('marking-prompt');if(p)p.remove();
 }
 
-function equipCapture(){
-  closeEquipPrompt();
-  var inp=document.getElementById('equip-cam-input');
+function markingCapture(){
+  closeMarkingPrompt();
+  var inp=document.getElementById('marking-cam-input');
   inp.onchange=function(){
     if(!inp.files.length)return;
-    processEquipPhoto(inp.files[0]);
+    processMarkingPhoto(inp.files[0]);
   };
   inp.click();
 }
 
-function equipImport(){
-  closeEquipPrompt();
-  var inp=document.getElementById('equip-import-input');
+function markingImport(){
+  closeMarkingPrompt();
+  var inp=document.getElementById('marking-import-input');
   inp.onchange=async function(){
     if(!inp.files.length)return;
     var files=Array.from(inp.files);
-    // Each photo becomes a separate equipment record
     for(var i=0;i<files.length;i++){
-      await processEquipPhoto(files[i]);
+      await processMarkingPhoto(files[i]);
     }
   };
   inp.click();
 }
 
-async function processEquipPhoto(file){
+async function processMarkingPhoto(file){
   var workFile=file;
   var ftype=(file.type||'').toLowerCase();
   if(ftype!=='image/jpeg'&&ftype!=='image/png'){
-    try{var b=await fileToJpegBlob(file);if(b)workFile=new File([b],(file.name||'equip').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});}catch(e){}
+    try{var b=await fileToJpegBlob(file);if(b)workFile=new File([b],(file.name||'marking').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});}catch(e){}
   }
   var exif=null;
   try{var buf=await new Promise(function(r,j){var rd=new FileReader();rd.onload=function(e){r(e.target.result);};rd.onerror=j;rd.readAsArrayBuffer(file);});exif=parseExif(buf);}catch(e){}
@@ -3840,33 +3974,34 @@ async function processEquipPhoto(file){
   var gpsSource=exif&&exif.lat?'exif':(_geoStatus==='on'?'device':'manual');
 
   APP.photoCounter=(APP.photoCounter||0)+1;
-  var eqNum=APP.photoCounter;
-  var eqSeqId='EQ-'+String(eqNum).padStart(3,'0');
+  var mkNum=APP.photoCounter;
+  var mkSeqId='MK-'+String(mkNum).padStart(3,'0');
 
   var thumb=await makeThumb(workFile);
   var thumbHD=await makeThumbHD(workFile);
 
-  var equip={
-    id:'eq'+Date.now()+Math.random().toString(36).slice(2,5),
-    seq:eqNum,seqId:eqSeqId,
-    type:'',make:'',model:'',unit:'',condition:'',location:'',notes:'',
+  var marking={
+    id:'mk'+Date.now()+Math.random().toString(36).slice(2,5),
+    seq:mkNum,seqId:mkSeqId,
+    areaName:'',condition:'',
+    parkingRows:[],lineRows:[],
+    signComments:'',notes:'',
     lat:eLat?+eLat.toFixed(6):null,lng:eLng?+eLng.toFixed(6):null,
     dir:eDir!=null?+eDir.toFixed(1):null,
     gpsSource:gpsSource,thumb:thumb,extraPhotoIds:[],
     zone:getZoneAtPoint(eLat,eLng),
     ts:new Date().toISOString(),aiStatus:'pending',hasHD:!!thumbHD
   };
-  // Auto-fill location from zone
-  if(equip.zone)equip.location=equip.zone;
-  if(thumbHD)idbPut('hd_eq_'+equip.id,thumbHD).catch(function(){});
-  APP.equipment.push(equip);
-  if(equip.lat&&equip.lng)addEquipMarker(equip);
-  save();updateEquipCount();
-  openEquipModal(equip.id);
+  if(marking.zone)marking.areaName=marking.zone;
+  if(thumbHD)idbPut('hd_mk_'+marking.id,thumbHD).catch(function(){});
+  APP.markings.push(marking);
+  if(marking.lat&&marking.lng)addMarkingMarker(marking);
+  save();updateMarkingCount();
+  openMarkingModal(marking.id);
 }
 
-/* ── Equipment Watermark (applied on save, after fields are filled) ── */
-function applyEquipWatermark(thumbDataUrl,eq){
+/* ── Marking Watermark ── */
+function applyMarkingWatermark(thumbDataUrl,mk){
   var wm=APP.watermark;
   if(!wm||!wm.enabled||!thumbDataUrl)return Promise.resolve(thumbDataUrl);
   return new Promise(function(res){
@@ -3880,12 +4015,15 @@ function applyEquipWatermark(thumbDataUrl,eq){
       var lines=[];
       if(wm.text)lines.push(wm.text);
       var line2=[];
-      if(eq.seqId)line2.push(eq.seqId);
-      if(wm.includeDate)line2.push(new Date(eq.ts).toLocaleString());
+      if(mk.seqId)line2.push(mk.seqId);
+      if(wm.includeDate)line2.push(new Date(mk.ts).toLocaleString());
       if(line2.length)lines.push(line2.join(' · '));
-      if(eq.type)lines.push('🚛 '+eq.type+(eq.make?' — '+eq.make:'')+(eq.model?' '+eq.model:''));
-      if(eq.location)lines.push('📍 '+eq.location);
-      if(wm.includeGps&&eq.lat)lines.push(eq.lat.toFixed(5)+', '+eq.lng.toFixed(5));
+      if(mk.areaName)lines.push('🛣️ '+mk.areaName);
+      var totalSpots=(mk.parkingRows||[]).reduce(function(s,r){return s+(r.spots||0);},0);
+      var totalLines=(mk.lineRows||[]).length;
+      if(totalSpots||totalLines)lines.push('🅿️ '+totalSpots+' spots · ━ '+totalLines+' lines');
+      if(mk.condition)lines.push('Condition: '+mk.condition);
+      if(wm.includeGps&&mk.lat)lines.push(mk.lat.toFixed(5)+', '+mk.lng.toFixed(5));
 
       if(!lines.length){res(thumbDataUrl);return;}
 
@@ -3916,167 +4054,177 @@ function applyEquipWatermark(thumbDataUrl,eq){
   });
 }
 
-function openEquipModal(id){
-  var eq=APP.equipment.find(function(e){return e.id===id;});if(!eq)return;
-  _editingEquipId=id;
-  _equipExtraPhotos=(eq.extraPhotoIds||[]).slice();
+/* ── Open / Close / Save / Delete ── */
+function openMarkingModal(id){
+  var mk=APP.markings.find(function(m){return m.id===id;});if(!mk)return;
+  _editingMarkingId=id;
+  _markingExtraPhotos=(mk.extraPhotoIds||[]).slice();
 
-  document.getElementById('equip-modal').style.display='flex';
-  document.getElementById('equip-title').textContent='🚛 '+(eq.type||'Equipment');
+  document.getElementById('marking-modal').style.display='flex';
+  document.getElementById('marking-title').textContent='🛣️ '+(mk.areaName||'Pavement Marking');
 
   // Thumb
-  var tw=document.getElementById('equip-thumb-wrap');
-  tw.innerHTML=eq.thumb?'<img src="'+eq.thumb+'" style="width:100%;height:100%;object-fit:cover">':'<span style="color:var(--muted);font-size:48px">🚛</span>';
-  if(eq.hasHD){
-    idbGet('hd_eq_'+eq.id).then(function(hd){
+  var tw=document.getElementById('marking-thumb-wrap');
+  tw.innerHTML=mk.thumb?'<img src="'+mk.thumb+'" style="width:100%;height:100%;object-fit:cover">':'<span style="color:var(--muted);font-size:48px">🛣️</span>';
+  if(mk.hasHD){
+    idbGet('hd_mk_'+mk.id).then(function(hd){
       if(hd)tw.innerHTML='<img src="'+hd+'" style="width:100%;height:100%;object-fit:contain">';
     }).catch(function(){});
   }
 
   // GPS
-  var tags=document.getElementById('equip-gps-tags');
+  var tags=document.getElementById('marking-gps-tags');
   var h='';
-  if(eq.lat&&eq.lng){
-    h+='<div class="pm-tag" style="background:rgba(34,197,94,.15);color:#22c55e">📍 '+eq.lat.toFixed(5)+', '+eq.lng.toFixed(5)+'</div>';
+  if(mk.lat&&mk.lng){
+    h+='<div class="pm-tag" style="background:rgba(34,197,94,.15);color:#22c55e">📍 '+mk.lat.toFixed(5)+', '+mk.lng.toFixed(5)+'</div>';
   } else {h+='<div class="pm-tag" style="background:rgba(239,68,68,.15);color:#ef4444">No GPS</div>';}
   tags.innerHTML=h;
 
-  // Form
-  document.getElementById('equip-type').value=eq.type||'';
-  document.getElementById('equip-make').value=eq.make||'';
-  document.getElementById('equip-model').value=eq.model||'';
-  document.getElementById('equip-unit').value=eq.unit||'';
-  document.getElementById('equip-condition').value=eq.condition||'';
-  document.getElementById('equip-location').value=eq.location||'';
-  document.getElementById('equip-notes').value=eq.notes||'';
-  document.getElementById('equip-ai-status').textContent='';
-  document.getElementById('equip-ai-label').textContent='AI Identify Equipment';
-  document.getElementById('equip-delete-btn').style.display='block';
+  // Area info
+  document.getElementById('marking-area-name').value=mk.areaName||'';
+  document.getElementById('marking-condition').value=mk.condition||'';
 
-  renderEquipExtraPhotos();
+  // Populate parking rows
+  document.getElementById('marking-parking-rows').innerHTML='';
+  (mk.parkingRows||[]).forEach(function(r){addParkingRow(r);});
+  updateParkingCount();
+
+  // Populate line rows
+  document.getElementById('marking-line-rows').innerHTML='';
+  (mk.lineRows||[]).forEach(function(r){addLineRow(r);});
+  updateLineCount();
+
+  // Signs & notes
+  document.getElementById('marking-sign-comments').value=mk.signComments||'';
+  document.getElementById('marking-notes').value=mk.notes||'';
+
+  document.getElementById('marking-ai-status').textContent='';
+  document.getElementById('marking-ai-label').textContent='AI Identify Marking';
+  document.getElementById('marking-delete-btn').style.display='block';
+
+  renderMarkingExtraPhotos();
 }
 
-function closeEquipModal(){
-  document.getElementById('equip-modal').style.display='none';
-  _editingEquipId=null;
+function closeMarkingModal(){
+  document.getElementById('marking-modal').style.display='none';
+  _editingMarkingId=null;
 }
 
-async function saveEquipment(){
-  var eq=APP.equipment.find(function(e){return e.id===_editingEquipId;});if(!eq)return;
-  eq.type=document.getElementById('equip-type').value;
-  eq.make=document.getElementById('equip-make').value;
-  eq.model=document.getElementById('equip-model').value;
-  eq.unit=document.getElementById('equip-unit').value;
-  eq.condition=document.getElementById('equip-condition').value;
-  eq.location=document.getElementById('equip-location').value;
-  eq.notes=document.getElementById('equip-notes').value;
-  eq.extraPhotoIds=_equipExtraPhotos.slice();
+async function saveMarking(){
+  var mk=APP.markings.find(function(m){return m.id===_editingMarkingId;});if(!mk)return;
+  mk.areaName=document.getElementById('marking-area-name').value;
+  mk.condition=document.getElementById('marking-condition').value;
+  mk.parkingRows=collectParkingRows();
+  mk.lineRows=collectLineRows();
+  mk.signComments=document.getElementById('marking-sign-comments').value;
+  mk.notes=document.getElementById('marking-notes').value;
+  mk.extraPhotoIds=_markingExtraPhotos.slice();
 
-  // Apply equipment watermark to HD thumb (now that fields are filled)
-  if(eq.hasHD){
+  // Apply watermark
+  if(mk.hasHD){
     try{
-      var hd=await idbGet('hd_eq_'+eq.id);
+      var hd=await idbGet('hd_mk_'+mk.id);
       if(hd){
-        var watermarked=await applyEquipWatermark(hd,eq);
+        var watermarked=await applyMarkingWatermark(hd,mk);
         if(watermarked){
-          await idbPut('hd_eq_'+eq.id,watermarked);
-          // Update small thumb too with watermark
-          var wmSmall=await applyEquipWatermark(eq.thumb,eq);
-          if(wmSmall)eq.thumb=wmSmall;
+          await idbPut('hd_mk_'+mk.id,watermarked);
+          var wmSmall=await applyMarkingWatermark(mk.thumb,mk);
+          if(wmSmall)mk.thumb=wmSmall;
         }
       }
-    }catch(e){console.warn('Equipment watermark failed:',e);}
+    }catch(e){console.warn('Marking watermark failed:',e);}
   }
 
   save();
-  // Rebuild marker
-  if(_equipMarkers[eq.id]){MAP.removeLayer(_equipMarkers[eq.id]);delete _equipMarkers[eq.id];}
-  if(eq.lat&&eq.lng)addEquipMarker(eq);
-  closeEquipModal();
-  updateEquipCount();
+  if(_markingMarkers[mk.id]){MAP.removeLayer(_markingMarkers[mk.id]);delete _markingMarkers[mk.id];}
+  if(mk.lat&&mk.lng)addMarkingMarker(mk);
+  closeMarkingModal();
+  updateMarkingCount();
 }
 
-function deleteEquipment(){
-  if(!confirm('Delete this equipment record?'))return;
-  var eq=APP.equipment.find(function(e){return e.id===_editingEquipId;});
-  if(_equipMarkers[_editingEquipId]){MAP.removeLayer(_equipMarkers[_editingEquipId]);delete _equipMarkers[_editingEquipId];}
-  if(eq&&eq.hasHD)idbDelete('hd_eq_'+eq.id).catch(function(){});
-  APP.equipment=APP.equipment.filter(function(e){return e.id!==_editingEquipId;});
-  save();updateEquipCount();
-  closeEquipModal();
+function deleteMarking(){
+  if(!confirm('Delete this marking record?'))return;
+  var mk=APP.markings.find(function(m){return m.id===_editingMarkingId;});
+  if(_markingMarkers[_editingMarkingId]){MAP.removeLayer(_markingMarkers[_editingMarkingId]);delete _markingMarkers[_editingMarkingId];}
+  if(mk&&mk.hasHD)idbDelete('hd_mk_'+mk.id).catch(function(){});
+  APP.markings=APP.markings.filter(function(m){return m.id!==_editingMarkingId;});
+  save();updateMarkingCount();
+  closeMarkingModal();
 }
 
-/* ── Equipment map markers (truck icon) ── */
-function addEquipMarker(eq){
-  if(!MAP||!eq.lat||!eq.lng)return;
-  var condColor=eq.condition==='Good'?'#22c55e':eq.condition==='Fair'?'#eab308':eq.condition==='Poor'?'#f97316':'#ef4444';
+/* ── Map markers ── */
+function addMarkingMarker(mk){
+  if(!MAP||!mk.lat||!mk.lng)return;
+  var condColor=mk.condition==='Good'?'#22c55e':mk.condition==='Fair'?'#eab308':mk.condition==='Poor'?'#f97316':'#ef4444';
   var svg='<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">'
     +'<rect x="4" y="8" width="28" height="20" rx="4" fill="'+condColor+'" stroke="#fff" stroke-width="2"/>'
-    +'<text x="18" y="22" text-anchor="middle" font-size="14" fill="#fff">🚛</text>'
+    +'<line x1="18" y1="11" x2="18" y2="15" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
+    +'<line x1="18" y1="19" x2="18" y2="23" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
     +'</svg>';
   var icon=L.divIcon({html:'<img src="data:image/svg+xml,'+encodeURIComponent(svg)+'" style="width:36px;height:36px">',className:'',iconSize:[36,36],iconAnchor:[18,18]});
-  var m=L.marker([eq.lat,eq.lng],{icon:icon}).addTo(MAP);
+  var m=L.marker([mk.lat,mk.lng],{icon:icon}).addTo(MAP);
 
+  var totalSpots=(mk.parkingRows||[]).reduce(function(s,r){return s+(r.spots||0);},0);
+  var totalLines=(mk.lineRows||[]).length;
   var pop='<div style="min-width:160px">';
-  if(eq.thumb)pop+='<img src="'+eq.thumb+'" style="width:100%;border-radius:6px;margin-bottom:4px">';
-  pop+='<b style="color:#7c3aed;font-size:12px">'+(eq.seqId||'🚛')+' '+(eq.type||'Equipment')+'</b>';
-  if(eq.make||eq.model)pop+='<div style="font-size:11px;font-weight:700">'+(eq.make||'')+' '+(eq.model||'')+'</div>';
-  if(eq.unit)pop+='<div style="font-size:10px;color:#888">Unit: '+esc(eq.unit)+'</div>';
-  if(eq.location)pop+='<div style="font-size:10px;color:#f59e0b">📍 '+esc(eq.location)+'</div>';
-  if(eq.condition)pop+='<div style="font-size:10px;font-weight:700;color:'+condColor+'">'+eq.condition+'</div>';
-  if(eq.notes)pop+='<div style="font-size:10px;font-style:italic;color:#888;margin-top:2px">'+esc(eq.notes)+'</div>';
+  if(mk.thumb)pop+='<img src="'+mk.thumb+'" style="width:100%;border-radius:6px;margin-bottom:4px">';
+  pop+='<b style="color:#3b82f6;font-size:12px">'+(mk.seqId||'🛣️')+' '+(mk.areaName||'Marking')+'</b>';
+  if(totalSpots)pop+='<div style="font-size:11px">🅿️ '+totalSpots+' parking spots</div>';
+  if(totalLines)pop+='<div style="font-size:11px">━ '+totalLines+' line entries</div>';
+  if(mk.condition)pop+='<div style="font-size:10px;font-weight:700;color:'+condColor+'">'+mk.condition+'</div>';
+  if(mk.signComments)pop+='<div style="font-size:10px;color:#888">🪧 '+esc(mk.signComments).substring(0,60)+'</div>';
+  if(mk.notes)pop+='<div style="font-size:10px;font-style:italic;color:#888;margin-top:2px">'+esc(mk.notes).substring(0,60)+'</div>';
   pop+='<div style="display:flex;gap:4px;margin-top:6px">'
-    +'<button onclick="openEquipModal(\''+eq.id+'\')" style="flex:1;background:none;border:1px solid #7c3aed;color:#7c3aed;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer">✏️ Edit</button>'
+    +'<button onclick="openMarkingModal(\''+mk.id+'\')" style="flex:1;background:none;border:1px solid #3b82f6;color:#3b82f6;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer">✏️ Edit</button>'
     +'</div></div>';
   m.bindPopup(pop,{maxWidth:200});
-  _equipMarkers[eq.id]=m;
+  _markingMarkers[mk.id]=m;
 }
 
-function rebuildEquipMarkers(){
+function rebuildMarkingMarkers(){
   if(!MAP)return;
-  Object.values(_equipMarkers).forEach(function(m){MAP.removeLayer(m);});
-  _equipMarkers={};
-  APP.equipment.forEach(function(eq){if(eq.lat&&eq.lng)addEquipMarker(eq);});
+  Object.values(_markingMarkers).forEach(function(m){MAP.removeLayer(m);});
+  _markingMarkers={};
+  APP.markings.forEach(function(mk){if(mk.lat&&mk.lng)addMarkingMarker(mk);});
 }
 
-function updateEquipCount(){
-  var el=document.getElementById('equip-count');if(el)el.textContent=APP.equipment.length;
+function updateMarkingCount(){
+  var el=document.getElementById('marking-count');if(el)el.textContent=APP.markings.length;
 }
 
-/* ── Extra photos for equipment ── */
-function addEquipPhoto(){
-  var inp=document.getElementById('equip-import-input');
+/* ── Extra photos ── */
+function addMarkingPhoto(){
+  var inp=document.getElementById('marking-import-input');
   inp.onchange=async function(){
     if(!inp.files.length)return;
     var files=Array.from(inp.files);
     for(var i=0;i<files.length;i++){
       var f=files[i];var wf=f;
       var ft=(f.type||'').toLowerCase();
-      if(ft!=='image/jpeg'&&ft!=='image/png'){try{var b=await fileToJpegBlob(f);if(b)wf=new File([b],'equip_extra.jpg',{type:'image/jpeg'});}catch(e){}}
+      if(ft!=='image/jpeg'&&ft!=='image/png'){try{var b=await fileToJpegBlob(f);if(b)wf=new File([b],'marking_extra.jpg',{type:'image/jpeg'});}catch(e){}}
       var thumb=await makeThumb(wf);if(!thumb)continue;
-      // Store as a photo in APP.photos with equipment link
       APP.photoCounter=(APP.photoCounter||0)+1;
       var photo={
         id:'p'+Date.now()+Math.random().toString(36).slice(2,5),
-        seq:APP.photoCounter,seqId:'EQ-'+String(APP.photoCounter).padStart(3,'0'),
+        seq:APP.photoCounter,seqId:'MK-'+String(APP.photoCounter).padStart(3,'0'),
         filename:f.name,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+fixLng(_lat,_lng).toFixed(6):null,
         dir:_heading!=null?+_heading.toFixed(1):null,gpsSource:_geoStatus==='on'?'device':'manual',
-        desc:'Equipment photo',primary:'',secondary:'',tertiary:'',severity:'',
+        desc:'Marking photo',primary:'',secondary:'',tertiary:'',severity:'',
         ts:new Date().toISOString(),thumb:thumb,_aspectRatio:1,transcript:'',audioDataUrl:null,hasAudio:false,hasHD:false
       };
       APP.photos.push(photo);
-      _equipExtraPhotos.push(photo.id);
+      _markingExtraPhotos.push(photo.id);
     }
     save();updateCount();
-    renderEquipExtraPhotos();
+    renderMarkingExtraPhotos();
   };
   inp.click();
 }
 
-function renderEquipExtraPhotos(){
-  var grid=document.getElementById('equip-extra-photos');
-  if(!_equipExtraPhotos.length){grid.innerHTML='<span style="font-size:11px;color:var(--muted)">No extra photos</span>';return;}
-  grid.innerHTML=_equipExtraPhotos.map(function(pid){
+function renderMarkingExtraPhotos(){
+  var grid=document.getElementById('marking-extra-photos');
+  if(!_markingExtraPhotos.length){grid.innerHTML='<span style="font-size:11px;color:var(--muted)">No extra photos</span>';return;}
+  grid.innerHTML=_markingExtraPhotos.map(function(pid){
     var p=APP.photos.find(function(x){return x.id===pid;});
     if(!p)return '';
     return '<div style="position:relative;width:50px;height:50px;border-radius:6px;overflow:hidden;border:1px solid var(--border);flex-shrink:0">'
@@ -4085,26 +4233,27 @@ function renderEquipExtraPhotos(){
   }).join('');
 }
 
-/* ── AI Identify Equipment ── */
-function aiIdentifyEquip(){
-  var eq=APP.equipment.find(function(e){return e.id===_editingEquipId;});if(!eq)return;
-  if(!APP.claudeKey){document.getElementById('equip-ai-status').innerHTML='<span style="color:var(--red)">No Claude API key — tap ⚙️</span>';return;}
-  if(!eq.thumb){document.getElementById('equip-ai-status').textContent='No photo to analyze';return;}
+/* ── AI Identify Marking ── */
+function aiIdentifyMarking(){
+  var mk=APP.markings.find(function(m){return m.id===_editingMarkingId;});if(!mk)return;
+  if(!APP.claudeKey){document.getElementById('marking-ai-status').innerHTML='<span style="color:var(--red)">No Claude API key — tap ⚙️</span>';return;}
+  if(!mk.thumb){document.getElementById('marking-ai-status').textContent='No photo to analyze';return;}
 
-  document.getElementById('equip-ai-label').textContent='Identifying…';
-  document.getElementById('equip-ai-status').textContent='Sending photo to Claude…';
+  document.getElementById('marking-ai-label').textContent='Analyzing…';
+  document.getElementById('marking-ai-status').textContent='Sending photo to Claude…';
 
-  var promptText='You are an industrial equipment identification AI. Analyze this photo and identify the equipment.\n\n'+
-    'SITE: Manchester Terminal, Houston TX — a 72-acre port/marine terminal operated by Logistec. '+
-    'Typical equipment on site: forklifts, reach stackers, side loaders, gantry cranes, container handlers, mobile cranes, wheel loaders for rebar/pipe handling.\n\n'+
-    'Common types: Forklift, Gantry Crane, Side Loader, Reach Stacker, Container Handler, Straddle Carrier, Mobile Crane, Boom Lift, Scissor Lift, Excavator, Wheel Loader, Skid Steer, Dump Truck, Flatbed Truck, Paver, Roller/Compactor, Milling Machine, Sweeper\n\n'+
-    'Respond ONLY with JSON (no markdown, no backticks):\n'+
-    '{"type":"equipment type from list above or Other","make":"manufacturer name if identifiable","model":"model name/number if identifiable","condition":"Good/Fair/Poor/Out of Service based on visible condition","notes":"any observations about the equipment, visible damage, approximate age, etc."}';
+  var promptText='You are a pavement marking and parking lot inspection AI. Analyze this photo of a parking lot or roadway section.\n\n'+
+    SITE_CONTEXT+'\n\n'+
+    'Identify ALL visible pavement markings and parking features. Respond ONLY with JSON (no markdown, no backticks):\n'+
+    '{"areaName":"descriptive name for this area","condition":"Good/Fair/Poor/Missing",'
+    +'"parkingRows":[{"spots":number,"category":"Car/RV/Bus/Handicap/Other","other":"details if Other","paintSize":"e.g. 4 in","paintColor":"White/Yellow/Red/Blue/Other","paintType":"Latex/Thermoplastic/Epoxy/Tape/Other","comments":"sign info, missing signs, etc."}],'
+    +'"lineRows":[{"number":count,"type":"Edge Line/Centerline/Stop Bar/Crosswalk/Lane Line/Turn Arrow/Legend\\/Text/Other","width":"e.g. 4 in","length":"e.g. 200 ft","color":"White/Yellow/Red/Blue/Other","comments":"condition notes"}],'
+    +'"signComments":"observations about signs — missing, damaged, type, etc.",'
+    +'"notes":"general observations about wear, compliance, etc."}';
 
   var content=[];
-  var imgData=eq.thumb;
-  // Try HD if available
-  if(eq._hdCached)imgData=eq._hdCached;
+  var imgData=mk.thumb;
+  if(mk._hdCached)imgData=mk._hdCached;
   var base64Match=imgData.match(/^data:image\/(jpeg|png|gif|webp);base64,(.+)$/);
   if(base64Match){
     content.push({type:'image',source:{type:'base64',media_type:'image/'+base64Match[1],data:base64Match[2]}});
@@ -4114,7 +4263,7 @@ function aiIdentifyEquip(){
   fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':APP.claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:content}]})
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:content}]})
   }).then(function(r){
     if(!r.ok)throw new Error('API '+r.status);
     return r.json();
@@ -4122,60 +4271,76 @@ function aiIdentifyEquip(){
     var text=data.content.map(function(c){return c.text||'';}).join('');
     var result=extractJSON(text);
 
-    if(result.type)document.getElementById('equip-type').value=result.type;
-    if(result.make)document.getElementById('equip-make').value=result.make;
-    if(result.model)document.getElementById('equip-model').value=result.model;
-    if(result.condition)document.getElementById('equip-condition').value=result.condition;
-    if(result.notes){
-      var existing=document.getElementById('equip-notes').value;
-      document.getElementById('equip-notes').value=(existing?existing+'\n':'')+'AI: '+result.notes;
-    }
-    document.getElementById('equip-title').textContent='🚛 '+(result.type||'Equipment');
+    if(result.areaName)document.getElementById('marking-area-name').value=result.areaName;
+    if(result.condition)document.getElementById('marking-condition').value=result.condition;
 
-    var status='✓ '+esc(result.type||'?')+' — '+(result.make||'?')+' '+(result.model||'');
-    document.getElementById('equip-ai-status').innerHTML='<span style="color:var(--green)">'+status+'</span>';
-    document.getElementById('equip-ai-label').textContent='🤖 Re-identify';
-    eq.aiStatus='done';
+    // Populate parking rows from AI
+    if(result.parkingRows&&result.parkingRows.length){
+      document.getElementById('marking-parking-rows').innerHTML='';
+      result.parkingRows.forEach(function(r){addParkingRow(r);});
+    }
+    // Populate line rows from AI
+    if(result.lineRows&&result.lineRows.length){
+      document.getElementById('marking-line-rows').innerHTML='';
+      result.lineRows.forEach(function(r){addLineRow(r);});
+    }
+
+    if(result.signComments){
+      var sc=document.getElementById('marking-sign-comments');
+      sc.value=(sc.value?sc.value+'\n':'')+'AI: '+result.signComments;
+    }
+    if(result.notes){
+      var n=document.getElementById('marking-notes');
+      n.value=(n.value?n.value+'\n':'')+'AI: '+result.notes;
+    }
+
+    document.getElementById('marking-title').textContent='🛣️ '+(result.areaName||'Marking');
+    var totalSpots=(result.parkingRows||[]).reduce(function(s,r){return s+(r.spots||0);},0);
+    var status='✓ '+(result.areaName||'Area')+' — '+totalSpots+' spots, '+(result.lineRows||[]).length+' lines';
+    document.getElementById('marking-ai-status').innerHTML='<span style="color:var(--green)">'+status+'</span>';
+    document.getElementById('marking-ai-label').textContent='🤖 Re-analyze';
+    mk.aiStatus='done';
   }).catch(function(err){
-    document.getElementById('equip-ai-status').innerHTML='<span style="color:var(--red)">'+esc(err.message||String(err))+'</span>';
-    document.getElementById('equip-ai-label').textContent='🤖 Retry';
-    eq.aiStatus='error';
+    document.getElementById('marking-ai-status').innerHTML='<span style="color:var(--red)">'+esc(err.message||String(err))+'</span>';
+    document.getElementById('marking-ai-label').textContent='🤖 Retry';
+    mk.aiStatus='error';
   });
 }
 
-/* ── Equipment List ── */
-function openEquipList(){
-  document.getElementById('equip-list-modal').style.display='flex';
-  renderEquipList();
+/* ── Marking List ── */
+function openMarkingList(){
+  document.getElementById('marking-list-modal').style.display='flex';
+  renderMarkingList();
 }
-function closeEquipList(){document.getElementById('equip-list-modal').style.display='none';}
+function closeMarkingList(){document.getElementById('marking-list-modal').style.display='none';}
 
-function renderEquipList(){
-  var grid=document.getElementById('equip-list-grid');
-  document.getElementById('equip-list-count').textContent=APP.equipment.length+' items';
-  if(!APP.equipment.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">No equipment logged yet. Tap 🚛 Equipment to start.</div>';return;}
-  grid.innerHTML=APP.equipment.map(function(eq){
-    var condColor=eq.condition==='Good'?'#22c55e':eq.condition==='Fair'?'#eab308':eq.condition==='Poor'?'#f97316':'#ef4444';
-    var h='<div class="gal-card" data-equip-edit="'+eq.id+'">';
-    h+=eq.thumb?'<img src="'+eq.thumb+'">':'<div style="height:120px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px">🚛</div>';
-    h+='<div class="info"><div class="name" style="color:#7c3aed;font-weight:800">'+(eq.seqId||'🚛')+' '+(eq.type||'Unknown')+'</div>';
-    if(eq.make||eq.model)h+='<div class="name">'+(eq.make||'')+' '+(eq.model||'')+'</div>';
-    if(eq.unit)h+='<div class="meta">Unit: '+esc(eq.unit)+'</div>';
-    if(eq.location)h+='<div class="meta" style="color:#f59e0b">📍 '+esc(eq.location)+'</div>';
+function renderMarkingList(){
+  var grid=document.getElementById('marking-list-grid');
+  document.getElementById('marking-list-count').textContent=APP.markings.length+' items';
+  if(!APP.markings.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">No markings logged yet. Tap 🛣️ Markings to start.</div>';return;}
+  grid.innerHTML=APP.markings.map(function(mk){
+    var condColor=mk.condition==='Good'?'#22c55e':mk.condition==='Fair'?'#eab308':mk.condition==='Poor'?'#f97316':'#ef4444';
+    var totalSpots=(mk.parkingRows||[]).reduce(function(s,r){return s+(r.spots||0);},0);
+    var totalLines=(mk.lineRows||[]).length;
+    var h='<div class="gal-card" data-marking-edit="'+mk.id+'">';
+    h+=mk.thumb?'<img src="'+mk.thumb+'">':'<div style="height:120px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px">🛣️</div>';
+    h+='<div class="info"><div class="name" style="color:#3b82f6;font-weight:800">'+(mk.seqId||'🛣️')+' '+(mk.areaName||'Area')+'</div>';
+    if(totalSpots)h+='<div class="meta">🅿️ '+totalSpots+' spots</div>';
+    if(totalLines)h+='<div class="meta">━ '+totalLines+' lines</div>';
     h+='<div class="tags">';
-    if(eq.condition)h+='<span class="tag" style="background:rgba(0,0,0,.2);color:'+condColor+'">'+eq.condition+'</span>';
+    if(mk.condition)h+='<span class="tag" style="background:rgba(0,0,0,.2);color:'+condColor+'">'+mk.condition+'</span>';
     h+='</div></div></div>';
     return h;
   }).join('');
 }
 
-// Equipment list card click → open edit
+// Marking list card click → open edit
 document.addEventListener('click',function(e){
-  var card=e.target.closest('[data-equip-edit]');
+  var card=e.target.closest('[data-marking-edit]');
   if(card){
-    var id=card.getAttribute('data-equip-edit');
-    closeEquipList();
-    setTimeout(function(){openEquipModal(id);},100);
+    var id=card.getAttribute('data-marking-edit');
+    closeMarkingList();
+    setTimeout(function(){openMarkingModal(id);},100);
   }
 });
 
@@ -4411,9 +4576,9 @@ load();
 if(!APP.nmKey)APP.nmKey=NM_DEFAULT_KEY;
 if(!APP.claudeKey)APP.claudeKey=CLAUDE_DEFAULT_KEY;
 if(!APP.watermark)APP.watermark={enabled:true,text:'Manchester Terminal — 10000 Manchester St, Houston TX',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70};
-if(!APP.equipment)APP.equipment=[];
+if(!APP.markings)APP.markings=[];
 if(!APP.fieldNotes)APP.fieldNotes=[];
-updateCount();updateEquipCount();updateNotesCount();refreshSiteLocations();
+updateCount();updateMarkingCount();updateNotesCount();refreshSiteLocations();
 if(APP.nmKey||APP.claudeKey){
   document.getElementById('nm-setup').style.display='none';
   document.getElementById('nm-key-input').value=APP.nmKey||'';
