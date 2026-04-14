@@ -25,12 +25,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   background:var(--surface);padding:6px 10px;display:flex;align-items:center;gap:6px;
   border-bottom:1px solid var(--border);flex-shrink:0;padding-top:max(6px,env(safe-area-inset-top));
 }
-/* Second-level row holds the section chip aligned right. Its own row so
-   the top bar stays clean and never has to wrap. */
+/* Second-level row — compact actions on the left, section dropdown on the right */
 #top-section-row{
-  background:var(--surface);padding:6px 10px;display:flex;align-items:center;
-  justify-content:flex-end;border-bottom:1px solid var(--border);flex-shrink:0;min-height:38px;
+  background:var(--surface);padding:5px 8px;display:flex;align-items:center;gap:6px;
+  border-bottom:1px solid var(--border);flex-shrink:0;min-height:40px;
 }
+#top-section-row .tma-group{display:flex;gap:4px;align-items:center;flex-shrink:0;}
+#top-section-row #sec-select{flex:1 1 auto;min-width:0;max-width:none;margin-left:auto;}
+#top-section-row .tma-edit-btn{padding:6px 8px;flex-shrink:0;}
 #top-bar .brand{font-weight:800;font-size:15px;letter-spacing:.04em;color:var(--accent);flex-shrink:0;}
 #top-bar .brand span{color:var(--text);font-weight:400;font-size:11px;margin-left:4px;}
 @media (max-width:400px){#top-bar .brand span{display:none;}}
@@ -701,19 +703,14 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 /* Adjustment: row geom bar sits on top */
 .inv-row .row-geom-bar button:active{transform:scale(.96);}
 
-/* ═══ TOP-OF-MAP ACTION BAR (compact) ═══ */
-#top-map-actions{
-  position:absolute;top:8px;left:8px;z-index:600;
-  display:flex;gap:6px;
-}
+/* ═══ COMPACT ACTION BUTTONS (inline in top-section-row) ═══ */
 .tma-btn{
-  background:rgba(15,23,42,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  border:1px solid var(--accent);color:var(--accent);
-  padding:7px 11px;border-radius:10px;font-size:12px;font-weight:800;
-  cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);
-  display:flex;align-items:center;gap:4px;line-height:1;
+  background:var(--bg);border:1px solid var(--accent);color:var(--accent);
+  padding:6px 9px;border-radius:8px;font-size:12px;font-weight:800;
+  cursor:pointer;display:inline-flex;align-items:center;gap:3px;line-height:1;
+  flex-shrink:0;white-space:nowrap;
 }
-.tma-btn:active{transform:scale(.96);background:var(--bg);}
+.tma-btn:active{transform:scale(.96);background:var(--surface);}
 .tma-btn.active{background:var(--green);color:#000;border-color:var(--green);}
 
 /* Hide the old fixed bottom action bar entirely */
@@ -795,26 +792,23 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     </div>
   </div>
 
-  <!-- Second-level row — section dropdown selector, right-aligned -->
+  <!-- Second-level row — compact actions (left) + section dropdown (right) -->
   <div id="top-section-row">
-    <label for="sec-select" style="font-size:10px;color:var(--muted);font-weight:700;margin-right:8px">Section:</label>
+    <div class="tma-group">
+      <button class="tma-btn" onclick="openSectionDetail('new')" title="New section"><span style="font-size:13px;font-weight:900">＋</span>Sec</button>
+      <button class="tma-btn" onclick="mergedCapturePhoto()" title="Take photo or pick from library">📷</button>
+      <button class="tma-btn" id="tma-draw-btn" onclick="toggleWalk()" title="Draw polygon / walk area"><span id="tma-draw-icon">📐</span><span id="tma-draw-label" style="display:none">Draw</span></button>
+      <button class="tma-btn" onclick="openNotesPanel()" title="Field notes">📝</button>
+    </div>
     <select id="sec-select" class="empty" onchange="onSectionSelectChange(this)" title="Pick active section">
       <option value="">— No section —</option>
     </select>
-    <button class="top-btn" onclick="openSectionDetail(APP.activeSectionId||'new')" title="Edit / create section" style="margin-left:6px">✏️</button>
+    <button class="top-btn tma-edit-btn" onclick="openSectionDetail(APP.activeSectionId||'new')" title="Edit / create section">✏️</button>
   </div>
 
   <!-- MAP -->
   <div id="map-area">
     <div id="map-el"></div>
-
-    <!-- Top-of-map compact action bar -->
-    <div id="top-map-actions">
-      <button class="tma-btn" onclick="openSectionDetail('new')" title="New section"><span style="font-size:14px;font-weight:800">＋</span> Section</button>
-      <button class="tma-btn" onclick="mergedCapturePhoto()" title="Take photo or pick from library">📷 Photo</button>
-      <button class="tma-btn" id="tma-draw-btn" onclick="toggleWalk()" title="Draw a polygon / walk area"><span id="tma-draw-icon">📐</span> <span id="tma-draw-label">Draw</span></button>
-      <button class="tma-btn" onclick="openNotesPanel()" title="Field notes">📝</button>
-    </div>
 
     <!-- Floating action buttons -->
     <button id="fab-fitall" onclick="fitAllMarkers()" title="Zoom to fit everything">⊙</button>
@@ -6974,7 +6968,7 @@ function _cleanupWalkState(){
   _syncDrawButton();
 }
 
-// Keep the visible top-of-map Draw button in sync with walk state
+// Keep the visible Draw button in sync with walk state
 function _syncDrawButton(){
   var dbtn=document.getElementById('tma-draw-btn');
   var dic=document.getElementById('tma-draw-icon');
@@ -6983,11 +6977,11 @@ function _syncDrawButton(){
   if(_walking){
     dbtn.classList.add('active');
     if(dic)dic.textContent='⏹';
-    if(dlb)dlb.textContent='Finish';
+    if(dlb){dlb.textContent='Finish';dlb.style.display='inline';}
   }else{
     dbtn.classList.remove('active');
     if(dic)dic.textContent='📐';
-    if(dlb)dlb.textContent='Draw';
+    if(dlb){dlb.textContent='';dlb.style.display='none';}
   }
 }
 
