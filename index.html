@@ -449,17 +449,21 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .inv-add-btn:active{background:var(--surface);}
 
 /* ═══ SECTIONS (pavement preservation scoping) ═══ */
-#sec-chip{
-  display:inline-flex;align-items:center;gap:6px;
-  max-width:100%;min-width:0;
-  background:var(--bg);border:1px solid var(--accent);color:var(--accent);
-  padding:6px 12px;border-radius:9px;font-size:12px;font-weight:700;
-  cursor:pointer;overflow:hidden;
+#sec-select{
+  flex:1 1 auto;min-width:0;max-width:260px;
+  background:var(--bg);border:1.5px solid var(--accent);color:var(--accent);
+  padding:7px 10px;padding-right:28px;
+  border-radius:9px;font-size:13px !important;font-weight:700;
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0 L5 6 L10 0 Z' fill='%23f59e0b'/></svg>");
+  background-repeat:no-repeat;background-position:right 10px center;background-size:10px 6px;
+  cursor:pointer;text-overflow:ellipsis;
 }
-#sec-chip.empty{border-color:var(--border);color:var(--muted);}
-#sec-chip .sc-id{background:var(--accent);color:#000;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:800;flex-shrink:0;}
-#sec-chip.empty .sc-id{background:var(--border);color:var(--muted);}
-#sec-chip .sc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sec-select.empty{border-color:var(--border);color:var(--muted);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0 L5 6 L10 0 Z' fill='%2394a3b8'/></svg>");}
+#sec-select.editing{border-color:var(--green);color:var(--green);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0 L5 6 L10 0 Z' fill='%2322c55e'/></svg>");}
+#sec-select option{background:var(--surface);color:var(--text);}
 
 /* Section list stays a full-screen modal */
 #section-list-modal{
@@ -791,12 +795,13 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     </div>
   </div>
 
-  <!-- Second-level row — active / editing section chip, aligned right -->
+  <!-- Second-level row — section dropdown selector, right-aligned -->
   <div id="top-section-row">
-    <button id="sec-chip" class="empty" onclick="openSectionList()" title="Active section">
-      <span class="sc-id" id="sec-chip-id">—</span>
-      <span class="sc-name" id="sec-chip-name">Tap to pick section</span>
-    </button>
+    <label for="sec-select" style="font-size:10px;color:var(--muted);font-weight:700;margin-right:8px">Section:</label>
+    <select id="sec-select" class="empty" onchange="onSectionSelectChange(this)" title="Pick active section">
+      <option value="">— No section —</option>
+    </select>
+    <button class="top-btn" onclick="openSectionDetail(APP.activeSectionId||'new')" title="Edit / create section" style="margin-left:6px">✏️</button>
   </div>
 
   <!-- MAP -->
@@ -5881,21 +5886,53 @@ function refreshAllTierCompletionMarks(){
   });
 }
 
+/* Refresh the section dropdown selector in the top-section row.
+   When editing, we reflect the editing section in the selector AND flip
+   to the green "editing" class so users see which one they're in. */
 function refreshSectionChip(){
-  var chip=document.getElementById('sec-chip');
-  var idEl=document.getElementById('sec-chip-id');
-  var nameEl=document.getElementById('sec-chip-name');
-  if(!chip)return;
-  var s=APP.sections.find(function(x){return x.id===APP.activeSectionId;});
-  if(s){
-    chip.classList.remove('empty');
-    idEl.textContent=s.sectionId||'SEC';
-    nameEl.textContent=s.name||'(unnamed)';
-  }else{
-    chip.classList.add('empty');
-    idEl.textContent='—';
-    nameEl.textContent='Tap to pick section';
+  var sel=document.getElementById('sec-select');
+  if(!sel)return;
+  // Rebuild options from APP.sections
+  var opts=['<option value="">— No active section —</option>'];
+  (APP.sections||[]).slice().sort(function(a,b){
+    return (a.sectionId||'').localeCompare(b.sectionId||'');
+  }).forEach(function(s){
+    var label=(s.sectionId||'—')+' · '+(s.name||'(unnamed)');
+    opts.push('<option value="'+esc(s.id)+'">'+esc(label)+'</option>');
+  });
+  sel.innerHTML=opts.join('');
+  // If a section detail is open, reflect that; otherwise show active
+  var showId=_editingSectionId||APP.activeSectionId||'';
+  sel.value=showId;
+  sel.classList.remove('empty','editing');
+  if(_editingSectionId){
+    sel.classList.add('editing');
+  }else if(!APP.activeSectionId){
+    sel.classList.add('empty');
   }
+}
+
+function onSectionSelectChange(sel){
+  var id=sel.value;
+  if(!id){
+    APP.activeSectionId=null;
+    save();refreshSectionChip();
+    return;
+  }
+  APP.activeSectionId=id;
+  save();
+  refreshSectionChip();
+  // Zoom map to the chosen section's boundary if it has one
+  var s=APP.sections.find(function(x){return x.id===id;});
+  if(s&&s.polygon&&s.polygon.length>=2&&MAP){
+    try{MAP.fitBounds(L.latLngBounds(s.polygon),{padding:[40,40],maxZoom:20});}catch(e){}
+  }
+}
+
+// Back-compat shim: old code paths call refreshEditingSectionChip(s) to
+// flip the chip to "editing" state. With the select we just re-render.
+function refreshEditingSectionChip(s){
+  refreshSectionChip();
 }
 
 function openSectionList(){
