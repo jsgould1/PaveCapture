@@ -24,15 +24,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #top-bar{
   background:var(--surface);padding:6px 10px;display:flex;align-items:center;gap:6px;
   border-bottom:1px solid var(--border);flex-shrink:0;padding-top:max(6px,env(safe-area-inset-top));
-  flex-wrap:wrap;row-gap:6px;
+}
+/* Second-level row holds the section chip aligned right. Its own row so
+   the top bar stays clean and never has to wrap. */
+#top-section-row{
+  background:var(--surface);padding:6px 10px;display:flex;align-items:center;
+  justify-content:flex-end;border-bottom:1px solid var(--border);flex-shrink:0;min-height:38px;
 }
 #top-bar .brand{font-weight:800;font-size:15px;letter-spacing:.04em;color:var(--accent);flex-shrink:0;}
 #top-bar .brand span{color:var(--text);font-weight:400;font-size:11px;margin-left:4px;}
-@media (max-width:480px){
-  /* On narrow phones, compress the brand to save room for the section chip */
-  #top-bar .brand{font-size:13px;}
-  #top-bar .brand span{display:none;}
-}
+@media (max-width:400px){#top-bar .brand span{display:none;}}
 .top-spacer{flex:1 1 auto;min-width:0;}
 .top-btn-group{
   display:flex;gap:4px;align-items:center;margin-left:auto;flex-shrink:0;flex-wrap:wrap;
@@ -450,9 +451,9 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 /* ═══ SECTIONS (pavement preservation scoping) ═══ */
 #sec-chip{
   display:inline-flex;align-items:center;gap:6px;
-  flex:1 1 auto;min-width:0;max-width:100%;
+  max-width:100%;min-width:0;
   background:var(--bg);border:1px solid var(--accent);color:var(--accent);
-  padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;
+  padding:6px 12px;border-radius:9px;font-size:12px;font-weight:700;
   cursor:pointer;overflow:hidden;
 }
 #sec-chip.empty{border-color:var(--border);color:var(--muted);}
@@ -786,10 +787,6 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <!-- TOP BAR -->
   <div id="top-bar">
     <div class="brand">PaveCapture<span>Scoping</span></div>
-    <button id="sec-chip" class="empty" onclick="openSectionList()" title="Active section">
-      <span class="sc-id" id="sec-chip-id">—</span>
-      <span class="sc-name" id="sec-chip-name">No section</span>
-    </button>
     <div class="top-btn-group">
       <span id="save-indicator" style="font-size:10px;font-weight:700;color:var(--muted);padding:0 4px"></span>
       <button class="top-btn" id="btn-sections" onclick="openSectionList()" title="Sections">📋</button>
@@ -798,6 +795,14 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <button class="top-btn" onclick="openGallery()">🗂</button>
       <button class="top-btn" onclick="exportData()">📤</button>
     </div>
+  </div>
+
+  <!-- Second-level row — active / editing section chip, aligned right -->
+  <div id="top-section-row">
+    <button id="sec-chip" class="empty" onclick="openSectionList()" title="Active section">
+      <span class="sc-id" id="sec-chip-id">—</span>
+      <span class="sc-name" id="sec-chip-name">Tap to pick section</span>
+    </button>
   </div>
 
   <!-- MAP -->
