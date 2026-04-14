@@ -420,6 +420,83 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   cursor:pointer;margin-top:4px;
 }
 .inv-add-btn:active{background:var(--surface);}
+
+/* ═══ SECTIONS (pavement preservation scoping) ═══ */
+#sec-chip{
+  display:inline-flex;align-items:center;gap:6px;max-width:58%;
+  background:var(--bg);border:1px solid var(--accent);color:var(--accent);
+  padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;
+  cursor:pointer;overflow:hidden;
+}
+#sec-chip.empty{border-color:var(--border);color:var(--muted);}
+#sec-chip .sc-id{background:var(--accent);color:#000;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:800;flex-shrink:0;}
+#sec-chip.empty .sc-id{background:var(--border);color:var(--muted);}
+#sec-chip .sc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+#section-list-modal,#section-modal{
+  display:none;position:fixed;inset:0;z-index:900;background:var(--bg);
+  flex-direction:column;overflow:hidden;
+}
+#section-list-modal.open,#section-modal.open{display:flex;}
+.sec-header{
+  background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  padding-top:max(10px,env(safe-area-inset-top));
+}
+.sec-header .sec-title{font-weight:700;font-size:14px;flex:1;}
+.sec-header button.close{background:none;border:none;color:var(--muted);font-size:22px;padding:4px 8px;cursor:pointer;}
+.sec-body{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch;}
+
+.sec-list-empty{text-align:center;color:var(--muted);padding:32px 16px;font-size:13px;line-height:1.5;}
+.sec-list-row{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center;cursor:pointer;
+}
+.sec-list-row.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(245,158,11,.25);}
+.sec-list-row .sl-id{
+  background:var(--accent);color:#000;padding:4px 10px;border-radius:8px;
+  font-size:12px;font-weight:800;flex-shrink:0;min-width:56px;text-align:center;
+}
+.sec-list-row .sl-body{flex:1;overflow:hidden;}
+.sec-list-row .sl-name{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sec-list-row .sl-meta{font-size:10px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
+.sec-list-row .sl-meta b{color:var(--accent2);font-weight:700;}
+.sec-list-row .sl-chev{color:var(--muted);font-size:18px;flex-shrink:0;}
+
+#sec-new-btn{
+  width:100%;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;
+  font-size:14px;font-weight:800;margin-bottom:12px;cursor:pointer;
+}
+#sec-new-btn:active{transform:scale(.98);}
+
+/* Section detail — tier accordion */
+.sec-tier{
+  margin-bottom:10px;border:1px solid var(--border);border-radius:12px;
+  background:var(--surface);overflow:hidden;
+}
+.sec-tier-head{
+  display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.sec-tier-head .st-icon{font-size:18px;flex-shrink:0;}
+.sec-tier-head .st-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;flex:1;}
+.sec-tier-head .st-count{font-size:10px;color:var(--accent);font-weight:700;background:var(--bg);padding:3px 8px;border-radius:10px;}
+.sec-tier-head .st-chev{color:var(--muted);font-size:13px;transition:transform .2s;}
+.sec-tier.collapsed .st-body{display:none;}
+.sec-tier.collapsed .st-chev{transform:rotate(-90deg);}
+.sec-tier .st-body{padding:10px 12px 14px;border-top:1px solid var(--border);background:var(--bg);}
+
+.sec-switch-btn{
+  background:var(--bg);border:1px solid var(--accent);color:var(--accent);
+  padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
+}
+.sec-active-banner{
+  background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);
+  border-radius:10px;padding:10px 12px;margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;font-size:12px;
+}
+.sec-active-banner .sab-id{background:var(--accent);color:#000;padding:3px 9px;border-radius:6px;font-weight:800;font-size:11px;}
+.sec-active-banner .sab-name{flex:1;color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -433,8 +510,13 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 
   <!-- TOP BAR -->
   <div id="top-bar">
-    <div class="brand">Manchester Terminal<span>PaveCapture</span></div>
+    <div class="brand">PaveCapture<span>Scoping</span></div>
+    <button id="sec-chip" class="empty" onclick="openSectionList()" title="Active section">
+      <span class="sc-id" id="sec-chip-id">—</span>
+      <span class="sc-name" id="sec-chip-name">No section</span>
+    </button>
     <div class="top-spacer"></div>
+    <button class="top-btn" id="btn-sections" onclick="openSectionList()" title="Sections">📋</button>
     <button class="top-btn" id="btn-zones" onclick="zoneMenu()" title="Site zones">🗺</button>
     <button class="top-btn" onclick="openSettings()">⚙️</button>
     <button class="top-btn" onclick="openGallery()">🗂</button>
@@ -851,6 +933,262 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   </div>
 </div>
 
+<!-- ═══ SECTION LIST MODAL ═══ -->
+<div id="section-list-modal">
+  <div class="sec-header">
+    <div class="sec-title">📋 Sections</div>
+    <span style="font-size:11px;color:var(--muted)" id="sec-list-count">0</span>
+    <button class="close" onclick="closeSectionList()">✕</button>
+  </div>
+  <div class="sec-body">
+    <button id="sec-new-btn" onclick="openSectionDetail('new')">+ New Section</button>
+    <div id="sec-list-rows"></div>
+  </div>
+</div>
+
+<!-- ═══ SECTION DETAIL MODAL ═══ -->
+<div id="section-modal">
+  <div class="sec-header">
+    <button class="close" onclick="closeSectionDetail()" style="font-size:18px">←</button>
+    <div class="sec-title" id="sec-det-title">Section</div>
+    <button class="sec-switch-btn" onclick="setActiveFromDetail()" id="sec-det-setactive">Set Active</button>
+    <button class="close" onclick="closeSectionDetail()">✕</button>
+  </div>
+  <div class="sec-body" id="sec-det-body">
+    <!-- Tier: Overview -->
+    <div class="sec-tier" id="sec-tier-overview">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-overview')">
+        <span class="st-icon">📌</span><span class="st-title">Section Overview</span>
+        <span class="st-count" id="sec-overview-status"></span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div class="fm-group">
+          <div class="fm-label">Section ID *</div>
+          <input type="text" class="fm-input" id="sec-f-id" placeholder="e.g. RD-01, LOT-A" maxlength="20">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Descriptive Name *</div>
+          <input type="text" class="fm-input" id="sec-f-name" placeholder="e.g. North Access Road, Main Parking Lot">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Type</div>
+          <select class="fm-select" id="sec-f-type">
+            <option value="Roadway">Roadway</option>
+            <option value="Parking Lot">Parking Lot</option>
+            <option value="Drive Aisle">Drive Aisle</option>
+            <option value="Shoulder">Shoulder</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Area (sq ft)</div>
+          <input type="number" class="fm-input" id="sec-f-area" placeholder="e.g. 12500" min="0">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Pavement Type</div>
+          <select class="fm-select" id="sec-f-pavetype">
+            <option value="">— Select —</option>
+            <option value="Asphalt">Asphalt (AC)</option>
+            <option value="Concrete">Concrete (PCC)</option>
+            <option value="Composite">Composite</option>
+            <option value="Chip Seal">Chip Seal</option>
+            <option value="Gravel">Gravel</option>
+          </select>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Overall Condition</div>
+          <select class="fm-select" id="sec-f-condition">
+            <option value="">— Select —</option>
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
+            <option value="Poor">Poor</option>
+            <option value="Very Poor">Very Poor</option>
+            <option value="Failed">Failed</option>
+          </select>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">PCI Range / Value (0–100)</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="number" class="fm-input" id="sec-f-pci" placeholder="e.g. 62" min="0" max="100" style="flex:1">
+            <select class="fm-select" id="sec-f-pcirange" style="flex:1">
+              <option value="">PCI Range —</option>
+              <option value="85-100 Good">85–100 Good</option>
+              <option value="70-85 Satisfactory">70–85 Satisfactory</option>
+              <option value="55-70 Fair">55–70 Fair</option>
+              <option value="40-55 Poor">40–55 Poor</option>
+              <option value="25-40 Very Poor">25–40 Very Poor</option>
+              <option value="10-25 Serious">10–25 Serious</option>
+              <option value="0-10 Failed">0–10 Failed</option>
+            </select>
+          </div>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Recommended Repair Type</div>
+          <select class="fm-select" id="sec-f-repair">
+            <option value="">— Select —</option>
+            <option value="Crack Seal">Crack Seal</option>
+            <option value="Fog Seal">Fog Seal</option>
+            <option value="Seal Coat / Slurry">Seal Coat / Slurry</option>
+            <option value="Chip Seal">Chip Seal</option>
+            <option value="Micro-surfacing">Micro-surfacing</option>
+            <option value="Thin Overlay">Thin Overlay</option>
+            <option value="Mill & Overlay">Mill &amp; Overlay</option>
+            <option value="Partial-Depth Reconstruction">Partial-Depth Reconstruction</option>
+            <option value="Full-Depth Reconstruction">Full-Depth Reconstruction</option>
+            <option value="Patch Repair Only">Patch Repair Only</option>
+            <option value="No Action">No Action</option>
+          </select>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Crack Seal Length (ft)</div>
+          <input type="number" class="fm-input" id="sec-f-crackseal" placeholder="Total LF of crack seal" min="0">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">General Notes</div>
+          <textarea class="fm-input" id="sec-f-notes" rows="3" placeholder="Site context, access notes, schedule..."></textarea>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Boundary Polygon</div>
+          <div id="sec-f-poly-status" style="font-size:11px;color:var(--muted);margin-bottom:6px">No boundary drawn</div>
+          <button onclick="drawSectionBoundary()" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:12px;font-weight:700">✏️ Draw Boundary on Map</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier: Pavement Distress -->
+    <div class="sec-tier collapsed" id="sec-tier-distress">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-distress')">
+        <span class="st-icon">🧱</span><span class="st-title">Pavement Distress & Repair Areas</span>
+        <span class="st-count" id="sec-cnt-distress">0</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">Linked photos, AI-tagged distress, and repair area polygons captured while this section is active.</p>
+        <div id="sec-distress-list" style="margin-bottom:8px"></div>
+        <button onclick="quickCapturePhoto()" style="width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:800;margin-bottom:6px">📷 Capture Distress Photo</button>
+        <button onclick="quickWalkArea()" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--green);color:var(--green);border-radius:8px;font-size:12px;font-weight:700">🚶 Walk Repair Area Polygon</button>
+      </div>
+    </div>
+
+    <!-- Tier: Curbs -->
+    <div class="sec-tier collapsed" id="sec-tier-curbs">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-curbs')">
+        <span class="st-icon">🟫</span><span class="st-title">Curbs &amp; Gutter</span>
+        <span class="st-count" id="sec-cnt-curbs">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div id="sec-curbs-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('curbs')">+ Add Curb Segment</button>
+      </div>
+    </div>
+
+    <!-- Tier: Sidewalks & Ped Ramps -->
+    <div class="sec-tier collapsed" id="sec-tier-sidewalks">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-sidewalks')">
+        <span class="st-icon">🚶</span><span class="st-title">Sidewalks &amp; Ped Ramps</span>
+        <span class="st-count" id="sec-cnt-sidewalks">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:700;text-transform:uppercase">Sidewalks</div>
+        <div id="sec-sidewalks-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('sidewalks')">+ Add Sidewalk</button>
+        <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Pedestrian Ramps</div>
+        <div id="sec-pedramps-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('pedramps')">+ Add Ped Ramp</button>
+      </div>
+    </div>
+
+    <!-- Tier: Curb Stops -->
+    <div class="sec-tier collapsed" id="sec-tier-curbstops">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-curbstops')">
+        <span class="st-icon">🧱</span><span class="st-title">Curb Stops (Wheel Stops)</span>
+        <span class="st-count" id="sec-cnt-curbstops">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div id="sec-curbstops-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('curbstops')">+ Add Curb Stop Group</button>
+      </div>
+    </div>
+
+    <!-- Tier: Parking -->
+    <div class="sec-tier collapsed" id="sec-tier-parking">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-parking')">
+        <span class="st-icon">🅿️</span><span class="st-title">Parking Spaces</span>
+        <span class="st-count" id="sec-cnt-parking">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:700;text-transform:uppercase">Standard Parking</div>
+        <div id="sec-parking-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('parking')">+ Add Parking Row</button>
+        <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Handicap Parking</div>
+        <div id="sec-handicap-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('handicap')">+ Add Handicap Row</button>
+      </div>
+    </div>
+
+    <!-- Tier: Striping -->
+    <div class="sec-tier collapsed" id="sec-tier-striping">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-striping')">
+        <span class="st-icon">━</span><span class="st-title">Striping, Stop Bars &amp; Crosswalks</span>
+        <span class="st-count" id="sec-cnt-striping">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:700;text-transform:uppercase">Center / Edge Line &amp; Lane Lines</div>
+        <div id="sec-striping-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('striping')">+ Add Line</button>
+        <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Stop Bars</div>
+        <div id="sec-stopbars-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('stopbars')">+ Add Stop Bar</button>
+        <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Crosswalks</div>
+        <div id="sec-crosswalks-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('crosswalks')">+ Add Crosswalk</button>
+      </div>
+    </div>
+
+    <!-- Tier: Signage -->
+    <div class="sec-tier collapsed" id="sec-tier-signs">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-signs')">
+        <span class="st-icon">🪧</span><span class="st-title">Signage</span>
+        <span class="st-count" id="sec-cnt-signs">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div id="sec-signs-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('signs')">+ Add Sign</button>
+      </div>
+    </div>
+
+    <!-- Tier: Drainage -->
+    <div class="sec-tier collapsed" id="sec-tier-drainage">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-drainage')">
+        <span class="st-icon">💧</span><span class="st-title">Drainage, Culverts &amp; Headwalls</span>
+        <span class="st-count" id="sec-cnt-drainage">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <div id="sec-drainage-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('drainage')">+ Add Drainage Feature</button>
+      </div>
+    </div>
+
+    <!-- Tier: Edge Drop-Off -->
+    <div class="sec-tier collapsed" id="sec-tier-edgedrop">
+      <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-edgedrop')">
+        <span class="st-icon">📉</span><span class="st-title">Edge Drop-Off</span>
+        <span class="st-count" id="sec-cnt-edgedrop">0 rows</span><span class="st-chev">▾</span>
+      </div>
+      <div class="st-body">
+        <p style="font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4">Measure drop depth at intervals along the edge. Add a row for each measurement or GPS-stamped point.</p>
+        <div id="sec-edgedrop-rows"></div>
+        <button class="inv-add-btn" onclick="secAddRow('edgedrop')">+ Add Drop-Off Reading</button>
+        <button onclick="secEdgedropHere()" style="width:100%;padding:8px;margin-top:6px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:11px;font-weight:700">📍 Add at Current GPS</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="deleteSection()" id="sec-det-delete" style="flex:1;padding:12px;background:var(--bg);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:700;display:none">🗑 Delete</button>
+      <button onclick="saveSection()" style="flex:2;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800">Save Section</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ SETTINGS MODAL ═══ -->
 <div id="settings-modal">
   <div id="settings-header">
@@ -1069,12 +1407,14 @@ var _zoneDrawing=false,_zoneDrawVerts=[],_zoneDrawDots=[],_zoneDrawLine=null;
 
 var APP={
   nmKey:NM_DEFAULT_KEY,nmDate:'',claudeKey:CLAUDE_DEFAULT_KEY,
-  watermark:{enabled:true,text:'Manchester Terminal — 10000 Manchester St, Houston TX',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70},
-  markings:[], // {id,areaName,condition,parkingRows:[],lineRows:[],signComments,notes,lat,lng,dir,gpsSource,thumb,extraPhotoIds,zone,ts,aiStatus,hasHD}
-  fieldNotes:[], // {id,type:'text'|'voice',text,lat,lng,zone,duration,hasAudio,ts}
+  watermark:{enabled:true,text:'PaveCapture — Pavement Preservation Scoping',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70},
+  markings:[], // {id,areaName,condition,parkingRows:[],lineRows:[],signComments,notes,lat,lng,dir,gpsSource,thumb,extraPhotoIds,zone,sectionId,ts,aiStatus,hasHD}
+  fieldNotes:[], // {id,type,text,lat,lng,zone,sectionId,duration,hasAudio,ts}
   photos:[],
   audioMemos:[],
   repairAreas:[],
+  sections:[], // Pavement preservation scoping sections — see SECTION_TEMPLATE
+  activeSectionId:null,
   photoCounter:0 // sequential number for reconciliation
 };
 
@@ -1106,6 +1446,8 @@ function load(){
     var r=localStorage.getItem(LS);if(r){
       var d=JSON.parse(r);Object.assign(APP,d);
       if(!APP.repairAreas)APP.repairAreas=[];
+      if(!APP.sections)APP.sections=[];
+      if(!('activeSectionId' in APP))APP.activeSectionId=null;
       if(!APP.photoCounter)APP.photoCounter=APP.photos.length;
     }
   }catch(e){}
@@ -1123,6 +1465,8 @@ function loadFromIDB(){
         if(!APP.repairAreas)APP.repairAreas=[];
         if(!APP.markings)APP.markings=[];
         if(!APP.fieldNotes)APP.fieldNotes=[];
+        if(!APP.sections)APP.sections=[];
+        if(!('activeSectionId' in APP))APP.activeSectionId=null;
         if(!APP.photoCounter)APP.photoCounter=APP.photos.length;
         // Refresh UI with restored data
         updateCount();updateMarkingCount();updateNotesCount();
@@ -2222,6 +2566,7 @@ async function batchImport(files){
       desc:'',primary:'',secondary:'',tertiary:'',severity:'',
       primary_src:'',secondary_src:'',tertiary_src:'',
       zone:getZoneAtPoint(photoLat,photoLng),
+      sectionId:APP.activeSectionId||null,
       ts:new Date().toISOString(),thumb:thumb,_aspectRatio:aspectRatio,
       transcript:'',audioDataUrl:null,hasAudio:false,hasHD:!!thumbHD,
       aiStatus:'pending'
@@ -2415,6 +2760,7 @@ async function processNextPending(){
     gpsSource:gpsSource,accuracy:gpsSource==='device'?_acc:null,
     desc:'',primary:'',secondary:'',tertiary:'',severity:'',
     zone:getZoneAtPoint(photoLat,photoLng),
+    sectionId:APP.activeSectionId||null,
     ts:new Date().toISOString(),
     thumb:thumb,_aspectRatio:aspectRatio,
     transcript:'',audioDataUrl:null,hasAudio:false,hasHD:!!thumbHD
@@ -3095,6 +3441,7 @@ function saveRepairArea(){
       vertices:_pendingRepairVerts.verts,
       area_sqft:_pendingRepairVerts.areaSqFt,
       perimeter_ft:_pendingRepairVerts.perimeterFt,
+      sectionId:APP.activeSectionId||null,
       ts:new Date().toISOString()
     };
   }
@@ -3732,14 +4079,41 @@ function dateStamp(){return new Date().toISOString().slice(0,10);}
 function dl(content,name,type){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:type}));a.download=name;a.click();}
 
 /* ═══ EXPORT (updated with repair areas + seqId + hasAudio) ═══ */
+function _secRefFor(id){
+  if(!id)return{sectionId:'',sectionName:''};
+  var s=APP.sections&&APP.sections.find(function(x){return x.id===id;});
+  return s?{sectionId:s.sectionId,sectionName:s.name}:{sectionId:'',sectionName:''};
+}
+
 function exportData(){
   var data={
     exportDate:new Date().toISOString(),
+    sections:(APP.sections||[]).map(function(s){
+      var counts={};
+      SECTION_TIERS.forEach(function(k){counts[k]=(s[k]||[]).length;});
+      return{
+        sectionId:s.sectionId,name:s.name,type:s.type,areaSF:s.areaSF,
+        pavementType:s.pavementType,condition:s.condition,
+        pciValue:s.pciValue,pciRange:s.pciRange,repairType:s.repairType,
+        crackSealFt:s.crackSealFt,notes:s.notes,
+        polygon:s.polygon||null,
+        inventory:{
+          curbs:s.curbs||[],sidewalks:s.sidewalks||[],pedramps:s.pedramps||[],
+          curbstops:s.curbstops||[],parking:s.parking||[],handicap:s.handicap||[],
+          striping:s.striping||[],stopbars:s.stopbars||[],crosswalks:s.crosswalks||[],
+          signs:s.signs||[],drainage:s.drainage||[],edgedrop:s.edgedrop||[]
+        },
+        counts:counts,
+        ts:s.ts,lastEdited:s.lastEdited||s.ts
+      };
+    }),
     photos:APP.photos.map(function(p){
       var seq=p.seqId||('PC-'+String(p.seq||0).padStart(3,'0'));
+      var sr=_secRefFor(p.sectionId);
       return{
         seqId:seq,filename:p.filename,lat:p.lat,lng:p.lng,direction:p.dir,
         gpsSource:p.gpsSource,accuracy:p.accuracy,
+        sectionId:sr.sectionId,sectionName:sr.sectionName,
         description:p.desc,primaryDistress:p.primary,secondaryDistress:p.secondary,
         tertiaryDistress:p.tertiary,severity:p.severity,
         transcript:p.transcript||'',
@@ -3749,8 +4123,10 @@ function exportData(){
       };
     }),
     repairAreas:APP.repairAreas.map(function(a){
+      var sr=_secRefFor(a.sectionId);
       return{
         name:a.name,type:a.type,priority:a.priority,notes:a.notes,
+        sectionId:sr.sectionId,sectionName:sr.sectionName,
         area_sqft:a.area_sqft,perimeter_ft:a.perimeter_ft,
         vertexCount:a.vertices.length,timestamp:a.ts
       };
@@ -3759,16 +4135,23 @@ function exportData(){
       return{timestamp:a.ts,lat:a.lat,lng:a.lng,duration:a.duration+'s'};
     }),
     markings:APP.markings.map(function(mk){
+      var sr=_secRefFor(mk.sectionId);
       return{seqId:mk.seqId,areaName:mk.areaName,condition:mk.condition,
+        sectionId:sr.sectionId,sectionName:sr.sectionName,
         parkingRows:mk.parkingRows||[],lineRows:mk.lineRows||[],
         signComments:mk.signComments||'',notes:mk.notes,
         lat:mk.lat,lng:mk.lng,timestamp:mk.ts};
     }),
     fieldNotes:APP.fieldNotes.map(function(n){
-      return{type:n.type,text:n.text,zone:n.zone||'',lat:n.lat,lng:n.lng,
+      var sr=_secRefFor(n.sectionId);
+      return{type:n.type,text:n.text,zone:n.zone||'',
+        sectionId:sr.sectionId,sectionName:sr.sectionName,
+        lat:n.lat,lng:n.lng,
         duration:n.duration?n.duration+'s':'',hasAudio:!!n.hasAudio,timestamp:n.ts};
     }),
     summary:{
+      totalSections:(APP.sections||[]).length,
+      totalAreaSF:(APP.sections||[]).reduce(function(s,x){return s+(x.areaSF||0);},0),
       totalPhotos:APP.photos.length,
       withGPS:APP.photos.filter(function(p){return p.lat&&p.lng;}).length,
       withDirection:APP.photos.filter(function(p){return p.dir!=null;}).length,
@@ -3783,49 +4166,76 @@ function exportData(){
     }
   };
 
+  // CSV for sections — overview sheet
+  var scsv='Section ID,Name,Type,Area (SF),Pavement Type,Condition,PCI,PCI Range,Repair Type,Crack Seal (ft),Polygon Pts,Curbs,Sidewalks,Ped Ramps,Curb Stops,Parking,Handicap,Striping,Stop Bars,Crosswalks,Signs,Drainage,Edge Drop,Notes,Timestamp\n';
+  (APP.sections||[]).forEach(function(s){
+    scsv+=[q(s.sectionId||''),q(s.name||''),q(s.type||''),s.areaSF||'',q(s.pavementType||''),q(s.condition||''),s.pciValue||'',q(s.pciRange||''),q(s.repairType||''),s.crackSealFt||'',(s.polygon?s.polygon.length:0),(s.curbs||[]).length,(s.sidewalks||[]).length,(s.pedramps||[]).length,(s.curbstops||[]).length,(s.parking||[]).length,(s.handicap||[]).length,(s.striping||[]).length,(s.stopbars||[]).length,(s.crosswalks||[]).length,(s.signs||[]).length,(s.drainage||[]).length,(s.edgedrop||[]).length,q(s.notes||''),s.ts].join(',')+'\n';
+  });
+
+  // CSV for section inventory rows — flattened across all tiers
+  var sicsv='Section ID,Section Name,Tier,Row #,Field,Value\n';
+  (APP.sections||[]).forEach(function(s){
+    SECTION_TIERS.forEach(function(tier){
+      (s[tier]||[]).forEach(function(row,idx){
+        Object.keys(row).forEach(function(k){
+          sicsv+=[q(s.sectionId||''),q(s.name||''),tier,idx+1,k,q(String(row[k]||''))].join(',')+'\n';
+        });
+      });
+    });
+  });
+
   // CSV for photos
-  var csv='Seq ID,Photo #,Filename,Zone,Lat,Lng,Direction,GPS Source,Description,Primary Distress,Primary Source,Secondary Distress,Secondary Source,Tertiary Distress,Tertiary Source,Severity,AI Confidence,Has Audio,Transcript,Timestamp\n';
+  var csv='Seq ID,Photo #,Filename,Section ID,Section Name,Zone,Lat,Lng,Direction,GPS Source,Description,Primary Distress,Primary Source,Secondary Distress,Secondary Source,Tertiary Distress,Tertiary Source,Severity,AI Confidence,Has Audio,Transcript,Timestamp\n';
   APP.photos.forEach(function(p,i){
     var seq=p.seqId||('PC-'+String(p.seq||i+1).padStart(3,'0'));
-    csv+=[seq,i+1,q(p.filename),q(p.zone||''),p.lat||'',p.lng||'',p.dir!=null?p.dir:'',p.gpsSource||'',q(p.desc),q(p.primary),p.primary_src||'',q(p.secondary),p.secondary_src||'',q(p.tertiary),p.tertiary_src||'',p.severity||'',p.aiConfidence||'',p.hasAudio?'Yes':'No',q(p.transcript||''),p.ts].join(',')+'\n';
+    var sr=_secRefFor(p.sectionId);
+    csv+=[seq,i+1,q(p.filename),q(sr.sectionId),q(sr.sectionName),q(p.zone||''),p.lat||'',p.lng||'',p.dir!=null?p.dir:'',p.gpsSource||'',q(p.desc),q(p.primary),p.primary_src||'',q(p.secondary),p.secondary_src||'',q(p.tertiary),p.tertiary_src||'',p.severity||'',p.aiConfidence||'',p.hasAudio?'Yes':'No',q(p.transcript||''),p.ts].join(',')+'\n';
   });
 
   // CSV for repair areas
-  var rcsv='Name,Type,Priority,Area (sq ft),Perimeter (ft),Vertices,Notes,Timestamp\n';
+  var rcsv='Section ID,Section Name,Name,Type,Priority,Area (sq ft),Perimeter (ft),Vertices,Notes,Timestamp\n';
   APP.repairAreas.forEach(function(a){
-    rcsv+=[q(a.name),q(a.type),a.priority,a.area_sqft,a.perimeter_ft,a.vertices.length,q(a.notes),a.ts].join(',')+'\n';
+    var sr=_secRefFor(a.sectionId);
+    rcsv+=[q(sr.sectionId),q(sr.sectionName),q(a.name),q(a.type),a.priority,a.area_sqft,a.perimeter_ft,a.vertices.length,q(a.notes),a.ts].join(',')+'\n';
   });
 
   // CSV for markings — parking rows
-  var mpcsv='Seq ID,Area Name,Condition,# Spots,Category,Other/Detail,Paint Size,Paint Color,Paint Type,Comments,Lat,Lng,Timestamp\n';
+  var mpcsv='Seq ID,Section ID,Section Name,Area Name,Condition,# Spots,Category,Other/Detail,Paint Size,Paint Color,Paint Type,Comments,Lat,Lng,Timestamp\n';
   APP.markings.forEach(function(mk){
+    var sr=_secRefFor(mk.sectionId);
     (mk.parkingRows||[]).forEach(function(r){
-      mpcsv+=[(mk.seqId||''),q(mk.areaName||''),mk.condition||'',r.spots||0,r.category||'',q(r.other||''),q(r.paintSize||''),r.paintColor||'',r.paintType||'',q(r.comments||''),mk.lat||'',mk.lng||'',mk.ts].join(',')+'\n';
+      mpcsv+=[(mk.seqId||''),q(sr.sectionId),q(sr.sectionName),q(mk.areaName||''),mk.condition||'',r.spots||0,r.category||'',q(r.other||''),q(r.paintSize||''),r.paintColor||'',r.paintType||'',q(r.comments||''),mk.lat||'',mk.lng||'',mk.ts].join(',')+'\n';
     });
   });
   // CSV for markings — line rows
-  var mlcsv='Seq ID,Area Name,Condition,Number,Type,Width,Length,Color,Comments,Lat,Lng,Timestamp\n';
+  var mlcsv='Seq ID,Section ID,Section Name,Area Name,Condition,Number,Type,Width,Length,Color,Comments,Lat,Lng,Timestamp\n';
   APP.markings.forEach(function(mk){
+    var sr=_secRefFor(mk.sectionId);
     (mk.lineRows||[]).forEach(function(r){
-      mlcsv+=[(mk.seqId||''),q(mk.areaName||''),mk.condition||'',r.number||0,r.type||'',q(r.width||''),q(r.length||''),r.color||'',q(r.comments||''),mk.lat||'',mk.lng||'',mk.ts].join(',')+'\n';
+      mlcsv+=[(mk.seqId||''),q(sr.sectionId),q(sr.sectionName),q(mk.areaName||''),mk.condition||'',r.number||0,r.type||'',q(r.width||''),q(r.length||''),r.color||'',q(r.comments||''),mk.lat||'',mk.lng||'',mk.ts].join(',')+'\n';
     });
   });
 
   dl(JSON.stringify(data,null,2),'pavecapture_'+dateStamp()+'.json','application/json');
-  setTimeout(function(){dl(csv,'pavecapture_photos_'+dateStamp()+'.csv','text/csv');},400);
+  if((APP.sections||[]).length){
+    setTimeout(function(){dl(scsv,'pavecapture_sections_'+dateStamp()+'.csv','text/csv');},300);
+    setTimeout(function(){dl(sicsv,'pavecapture_section_inventory_'+dateStamp()+'.csv','text/csv');},600);
+  }
+  setTimeout(function(){dl(csv,'pavecapture_photos_'+dateStamp()+'.csv','text/csv');},900);
   if(APP.repairAreas.length){
-    setTimeout(function(){dl(rcsv,'pavecapture_repairs_'+dateStamp()+'.csv','text/csv');},800);
+    setTimeout(function(){dl(rcsv,'pavecapture_repairs_'+dateStamp()+'.csv','text/csv');},1200);
   }
   if(APP.markings.length){
-    setTimeout(function(){dl(mpcsv,'pavecapture_marking_parking_'+dateStamp()+'.csv','text/csv');},1200);
-    setTimeout(function(){dl(mlcsv,'pavecapture_marking_lines_'+dateStamp()+'.csv','text/csv');},1600);
+    setTimeout(function(){dl(mpcsv,'pavecapture_marking_parking_'+dateStamp()+'.csv','text/csv');},1500);
+    setTimeout(function(){dl(mlcsv,'pavecapture_marking_lines_'+dateStamp()+'.csv','text/csv');},1800);
   }
   if(APP.fieldNotes.length){
-    var ncsv='Time,Type,Zone,Lat,Lng,Duration,Has Audio,Text\n';
+    var ncsv='Time,Type,Section ID,Section Name,Zone,Lat,Lng,Duration,Has Audio,Text\n';
     APP.fieldNotes.forEach(function(n){
-      ncsv+=[new Date(n.ts).toLocaleString(),n.type,q(n.zone||''),n.lat||'',n.lng||'',n.duration||'',n.hasAudio?'Yes':'No',q(n.text)].join(',')+'\n';
+      var sr=_secRefFor(n.sectionId);
+      ncsv+=[new Date(n.ts).toLocaleString(),n.type,q(sr.sectionId),q(sr.sectionName),q(n.zone||''),n.lat||'',n.lng||'',n.duration||'',n.hasAudio?'Yes':'No',q(n.text)].join(',')+'\n';
     });
-    setTimeout(function(){dl(ncsv,'pavecapture_notes_'+dateStamp()+'.csv','text/csv');},1600);
+    setTimeout(function(){dl(ncsv,'pavecapture_notes_'+dateStamp()+'.csv','text/csv');},2100);
   }
 }
 
@@ -3990,6 +4400,7 @@ async function processMarkingPhoto(file){
     dir:eDir!=null?+eDir.toFixed(1):null,
     gpsSource:gpsSource,thumb:thumb,extraPhotoIds:[],
     zone:getZoneAtPoint(eLat,eLng),
+    sectionId:APP.activeSectionId||null,
     ts:new Date().toISOString(),aiStatus:'pending',hasHD:!!thumbHD
   };
   if(marking.zone)marking.areaName=marking.zone;
@@ -4210,6 +4621,7 @@ function addMarkingPhoto(){
         filename:f.name,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+fixLng(_lat,_lng).toFixed(6):null,
         dir:_heading!=null?+_heading.toFixed(1):null,gpsSource:_geoStatus==='on'?'device':'manual',
         desc:'Marking photo',primary:'',secondary:'',tertiary:'',severity:'',
+        sectionId:APP.activeSectionId||null,
         ts:new Date().toISOString(),thumb:thumb,_aspectRatio:1,transcript:'',audioDataUrl:null,hasAudio:false,hasHD:false
       };
       APP.photos.push(photo);
@@ -4388,6 +4800,7 @@ function addTextNote(){
     text:text,
     lat:lat,lng:lng,
     zone:getZoneAtPoint(lat,lng),
+    sectionId:APP.activeSectionId||null,
     duration:0,hasAudio:false,
     ts:new Date().toISOString()
   };
@@ -4459,6 +4872,7 @@ function saveVoiceNote(blob,duration){
     text:noteText,
     lat:lat,lng:lng,
     zone:getZoneAtPoint(lat,lng),
+    sectionId:APP.activeSectionId||null,
     duration:duration,hasAudio:true,
     ts:new Date().toISOString()
   };
@@ -4576,9 +4990,434 @@ load();
 if(!APP.nmKey)APP.nmKey=NM_DEFAULT_KEY;
 if(!APP.claudeKey)APP.claudeKey=CLAUDE_DEFAULT_KEY;
 if(!APP.watermark)APP.watermark={enabled:true,text:'Manchester Terminal — 10000 Manchester St, Houston TX',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70};
+/* ═══════════════════════════════════════════════════════════
+   SECTIONS — Pavement Preservation Scoping Module
+   ═══════════════════════════════════════════════════════════ */
+
+var SECTION_TIERS=['curbs','sidewalks','pedramps','curbstops','parking','handicap',
+  'striping','stopbars','crosswalks','signs','drainage','edgedrop'];
+
+// Field schema for each tier — drives dynamic row rendering
+var SEC_ROW_SCHEMA={
+  curbs:[
+    {k:'curbed',l:'Curbed?',t:'select',opts:['Yes','No','Partial']},
+    {k:'length',l:'Length (ft)',t:'number'},
+    {k:'material',l:'Material',t:'select',opts:['Concrete','Asphalt','Stone','Integral','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Failed']},
+    {k:'details',l:'Details / Notes',t:'text',full:true}
+  ],
+  sidewalks:[
+    {k:'length',l:'Length (ft)',t:'number'},
+    {k:'width',l:'Width (ft)',t:'number'},
+    {k:'material',l:'Material',t:'select',opts:['Concrete','Asphalt','Pavers','Gravel','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Failed']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  pedramps:[
+    {k:'ada',l:'ADA Compliant',t:'select',opts:['Yes','No','Unclear']},
+    {k:'type',l:'Type',t:'select',opts:['Perpendicular','Parallel','Blended','Diagonal','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Failed']},
+    {k:'truncDomes',l:'Truncated Domes',t:'select',opts:['Yes','No','Damaged']},
+    {k:'comments',l:'Comments',t:'text',full:true}
+  ],
+  curbstops:[
+    {k:'qty',l:'Qty Present',t:'number'},
+    {k:'qtyMissing',l:'Qty Missing',t:'number'},
+    {k:'type',l:'Type',t:'select',opts:['Concrete','Rubber','Plastic','Steel','Other']},
+    {k:'pinned',l:'Pinned?',t:'select',opts:['Pinned','Not Pinned','Mixed']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Failed']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  parking:[
+    {k:'count',l:'# Spots',t:'number'},
+    {k:'type',l:'Type',t:'select',opts:['Standard','Compact','RV','Bus','Truck','EV','Other']},
+    {k:'vehicleSize',l:'Vehicle Size',t:'text'},
+    {k:'lineWidth',l:'Line Width',t:'text'},
+    {k:'material',l:'Paint Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
+    {k:'color',l:'Color',t:'select',opts:['White','Yellow','Blue','Red','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  handicap:[
+    {k:'count',l:'# HC Spots',t:'number'},
+    {k:'type',l:'Type',t:'select',opts:['Standard','Van Accessible','Both']},
+    {k:'size',l:'Size',t:'text'},
+    {k:'marked',l:'Marked?',t:'select',opts:['Yes','No','Partial']},
+    {k:'signage',l:'Signage',t:'select',opts:['Present','Missing','Damaged']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  striping:[
+    {k:'location',l:'Location',t:'select',opts:['Centerline','Edge Line','Lane Line','Other']},
+    {k:'length',l:'Length (ft)',t:'number'},
+    {k:'width',l:'Width',t:'text'},
+    {k:'color',l:'Color',t:'select',opts:['White','Yellow','Other']},
+    {k:'material',l:'Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  stopbars:[
+    {k:'length',l:'Length (ft)',t:'number'},
+    {k:'width',l:'Width',t:'text'},
+    {k:'material',l:'Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
+    {k:'color',l:'Color',t:'select',opts:['White','Yellow','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  crosswalks:[
+    {k:'style',l:'Style',t:'select',opts:['Transverse','Continental','Ladder','Solid','Other']},
+    {k:'length',l:'Length (ft)',t:'number'},
+    {k:'width',l:'Width (ft)',t:'number'},
+    {k:'color',l:'Color',t:'select',opts:['White','Yellow','Other']},
+    {k:'material',l:'Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  signs:[
+    {k:'count',l:'Count',t:'number'},
+    {k:'type',l:'Type',t:'text'},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Damaged','Missing']},
+    {k:'location',l:'Location',t:'text'},
+    {k:'missing',l:'Missing?',t:'select',opts:['No','Yes','Unsure']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  drainage:[
+    {k:'feature',l:'Feature',t:'select',opts:['Culvert','Catch Basin','Inlet','Ditch','Head Wall','Pipe','Other']},
+    {k:'material',l:'Material',t:'select',opts:['CMP','RCP','HDPE','PVC','Concrete','Stone','Other']},
+    {k:'size',l:'Size / Diameter',t:'text'},
+    {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Failed']},
+    {k:'repair',l:'Repair Needed',t:'select',opts:['None','Clean','Repair','Replace']},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ],
+  edgedrop:[
+    {k:'station',l:'Station / Location',t:'text'},
+    {k:'depth',l:'Depth (in)',t:'number'},
+    {k:'width',l:'Width (in)',t:'number'},
+    {k:'length',l:'Length (ft)',t:'number'},
+    {k:'severity',l:'Severity',t:'select',opts:['Low','Medium','High']},
+    {k:'lat',l:'Lat',t:'text'},
+    {k:'lng',l:'Lng',t:'text'},
+    {k:'notes',l:'Notes',t:'text',full:true}
+  ]
+};
+
+var _editingSectionId=null;
+var _pendingSectionPoly=null;
+
+function newSectionObject(){
+  var s={
+    id:'sec'+Date.now()+Math.random().toString(36).slice(2,5),
+    sectionId:'',name:'',type:'Roadway',
+    areaSF:null,pavementType:'',condition:'',
+    pciValue:null,pciRange:'',repairType:'',
+    crackSealFt:null,notes:'',
+    polygon:null,
+    ts:new Date().toISOString()
+  };
+  SECTION_TIERS.forEach(function(k){s[k]=[];});
+  return s;
+}
+
+function refreshSectionChip(){
+  var chip=document.getElementById('sec-chip');
+  var idEl=document.getElementById('sec-chip-id');
+  var nameEl=document.getElementById('sec-chip-name');
+  if(!chip)return;
+  var s=APP.sections.find(function(x){return x.id===APP.activeSectionId;});
+  if(s){
+    chip.classList.remove('empty');
+    idEl.textContent=s.sectionId||'SEC';
+    nameEl.textContent=s.name||'(unnamed)';
+  }else{
+    chip.classList.add('empty');
+    idEl.textContent='—';
+    nameEl.textContent='Tap to pick section';
+  }
+}
+
+function openSectionList(){
+  renderSectionList();
+  document.getElementById('section-list-modal').classList.add('open');
+}
+function closeSectionList(){
+  document.getElementById('section-list-modal').classList.remove('open');
+}
+
+function renderSectionList(){
+  var box=document.getElementById('sec-list-rows');
+  document.getElementById('sec-list-count').textContent=APP.sections.length+' section'+(APP.sections.length!==1?'s':'');
+  if(!APP.sections.length){
+    box.innerHTML='<div class="sec-list-empty">No sections yet.<br>Tap <b>+ New Section</b> to begin scoping.</div>';
+    return;
+  }
+  var html='';
+  APP.sections.forEach(function(s){
+    var counts=0;
+    SECTION_TIERS.forEach(function(k){counts+=(s[k]||[]).length;});
+    var photos=APP.photos.filter(function(p){return p.sectionId===s.id;}).length;
+    var repairs=APP.repairAreas.filter(function(r){return r.sectionId===s.id;}).length;
+    var active=s.id===APP.activeSectionId?' active':'';
+    html+='<div class="sec-list-row'+active+'" onclick="openSectionDetail(\''+s.id+'\')">'
+      +'<div class="sl-id">'+esc(s.sectionId||'—')+'</div>'
+      +'<div class="sl-body">'
+      +'<div class="sl-name">'+esc(s.name||'(unnamed)')+'</div>'
+      +'<div class="sl-meta">'
+      +'<span>'+esc(s.type||'—')+'</span>'
+      +(s.areaSF?'<span><b>'+Number(s.areaSF).toLocaleString()+'</b> SF</span>':'')
+      +(s.condition?'<span>'+esc(s.condition)+'</span>':'')
+      +(s.pciValue?'<span>PCI <b>'+s.pciValue+'</b></span>':'')
+      +'<span>📷 '+photos+'</span>'
+      +(repairs?'<span>🧱 '+repairs+'</span>':'')
+      +(counts?'<span>📋 '+counts+'</span>':'')
+      +'</div></div>'
+      +'<div class="sl-chev">›</div></div>';
+  });
+  box.innerHTML=html;
+}
+
+function openSectionDetail(id){
+  closeSectionList();
+  var s;
+  if(id==='new'){
+    s=newSectionObject();
+    _editingSectionId=null;
+  }else{
+    s=APP.sections.find(function(x){return x.id===id;});
+    if(!s){alert('Section not found');return;}
+    _editingSectionId=s.id;
+  }
+  _pendingSectionPoly=s.polygon?s.polygon.slice():null;
+
+  // Populate form
+  document.getElementById('sec-det-title').textContent=_editingSectionId?(s.sectionId||'Section'):'New Section';
+  document.getElementById('sec-f-id').value=s.sectionId||'';
+  document.getElementById('sec-f-name').value=s.name||'';
+  document.getElementById('sec-f-type').value=s.type||'Roadway';
+  document.getElementById('sec-f-area').value=s.areaSF||'';
+  document.getElementById('sec-f-pavetype').value=s.pavementType||'';
+  document.getElementById('sec-f-condition').value=s.condition||'';
+  document.getElementById('sec-f-pci').value=s.pciValue||'';
+  document.getElementById('sec-f-pcirange').value=s.pciRange||'';
+  document.getElementById('sec-f-repair').value=s.repairType||'';
+  document.getElementById('sec-f-crackseal').value=s.crackSealFt||'';
+  document.getElementById('sec-f-notes').value=s.notes||'';
+  document.getElementById('sec-f-poly-status').textContent=
+    _pendingSectionPoly?(_pendingSectionPoly.length+' vertices drawn'):'No boundary drawn';
+  document.getElementById('sec-det-delete').style.display=_editingSectionId?'block':'none';
+  document.getElementById('sec-det-setactive').style.display=_editingSectionId?'inline-block':'none';
+
+  // Populate tier rows
+  SECTION_TIERS.forEach(function(k){
+    var box=document.getElementById('sec-'+k+'-rows');
+    if(!box)return;
+    box.innerHTML='';
+    (s[k]||[]).forEach(function(row){secAddRow(k,row);});
+    secUpdateCount(k);
+  });
+
+  document.getElementById('section-modal').classList.add('open');
+  // Scroll tiers back to top
+  setTimeout(function(){document.getElementById('sec-det-body').scrollTop=0;},20);
+}
+
+function closeSectionDetail(){
+  document.getElementById('section-modal').classList.remove('open');
+  _pendingSectionPoly=null;
+}
+
+function toggleSecTier(tid){
+  document.getElementById(tid).classList.toggle('collapsed');
+}
+
+function secAddRow(tier,data){
+  var container=document.getElementById('sec-'+tier+'-rows');
+  if(!container)return;
+  var schema=SEC_ROW_SCHEMA[tier]||[];
+  var d=data||{};
+  // Auto-stamp GPS for edgedrop rows
+  if(tier==='edgedrop'&&!data&&_lat&&_lng){
+    d.lat=(+_lat).toFixed(6);d.lng=(+fixLng(_lat,_lng)).toFixed(6);
+  }
+  var row=document.createElement('div');
+  row.className='inv-row';
+  row.dataset.tier=tier;
+  var html='<button class="inv-del" onclick="var r=this.parentElement;var t=r.dataset.tier;r.remove();secUpdateCount(t)">✕</button>'
+    +'<div class="inv-fields">';
+  schema.forEach(function(f){
+    var val=d[f.k]!=null?d[f.k]:'';
+    html+='<div class="inv-field'+(f.full?' full':'')+'"><label>'+f.l+'</label>';
+    if(f.t==='select'){
+      html+='<select class="sf-'+f.k+'"><option value="">—</option>';
+      f.opts.forEach(function(o){
+        html+='<option'+(val===o?' selected':'')+'>'+o+'</option>';
+      });
+      html+='</select>';
+    }else if(f.t==='number'){
+      html+='<input type="number" class="sf-'+f.k+'" value="'+esc(String(val))+'" min="0">';
+    }else{
+      html+='<input type="text" class="sf-'+f.k+'" value="'+esc(String(val))+'">';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  row.innerHTML=html;
+  container.appendChild(row);
+  secUpdateCount(tier);
+}
+
+function secCollectRows(tier){
+  var rows=[];
+  var schema=SEC_ROW_SCHEMA[tier]||[];
+  document.querySelectorAll('#sec-'+tier+'-rows .inv-row').forEach(function(r){
+    var obj={};
+    schema.forEach(function(f){
+      var el=r.querySelector('.sf-'+f.k);
+      if(!el)return;
+      var v=el.value;
+      if(f.t==='number'&&v!==''){v=Number(v);}
+      obj[f.k]=v;
+    });
+    rows.push(obj);
+  });
+  return rows;
+}
+
+function secUpdateCount(tier){
+  var el=document.getElementById('sec-cnt-'+tier);
+  if(!el)return;
+  var n=document.querySelectorAll('#sec-'+tier+'-rows .inv-row').length;
+  el.textContent=n+' row'+(n!==1?'s':'');
+}
+
+function secEdgedropHere(){
+  if(!_lat||!_lng){alert('No GPS fix yet');return;}
+  secAddRow('edgedrop');
+}
+
+function saveSection(){
+  var sid=document.getElementById('sec-f-id').value.trim();
+  var sname=document.getElementById('sec-f-name').value.trim();
+  if(!sid||!sname){alert('Section ID and Name are required');return;}
+  // Uniqueness check
+  var dup=APP.sections.find(function(x){return x.sectionId.toLowerCase()===sid.toLowerCase()&&x.id!==_editingSectionId;});
+  if(dup){alert('Section ID "'+sid+'" already exists');return;}
+
+  var s;
+  if(_editingSectionId){
+    s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+    if(!s)return;
+  }else{
+    s=newSectionObject();
+    APP.sections.push(s);
+  }
+  s.sectionId=sid;
+  s.name=sname;
+  s.type=document.getElementById('sec-f-type').value;
+  s.areaSF=parseFloat(document.getElementById('sec-f-area').value)||null;
+  s.pavementType=document.getElementById('sec-f-pavetype').value;
+  s.condition=document.getElementById('sec-f-condition').value;
+  s.pciValue=parseFloat(document.getElementById('sec-f-pci').value)||null;
+  s.pciRange=document.getElementById('sec-f-pcirange').value;
+  s.repairType=document.getElementById('sec-f-repair').value;
+  s.crackSealFt=parseFloat(document.getElementById('sec-f-crackseal').value)||null;
+  s.notes=document.getElementById('sec-f-notes').value;
+  if(_pendingSectionPoly&&_pendingSectionPoly.length>=3)s.polygon=_pendingSectionPoly.slice();
+  SECTION_TIERS.forEach(function(k){s[k]=secCollectRows(k);});
+  s.lastEdited=new Date().toISOString();
+
+  // First-time save: auto-activate
+  if(!_editingSectionId){
+    APP.activeSectionId=s.id;
+  }
+  _editingSectionId=s.id;
+
+  save();
+  refreshSectionChip();
+  closeSectionDetail();
+  openSectionList();
+}
+
+function deleteSection(){
+  if(!_editingSectionId)return;
+  var s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  if(!s)return;
+  if(!confirm('Delete section "'+s.sectionId+' — '+s.name+'"?\nThis does NOT delete photos, markings, or repair areas, but they will be unlinked.'))return;
+  APP.sections=APP.sections.filter(function(x){return x.id!==_editingSectionId;});
+  // Unlink children
+  APP.photos.forEach(function(p){if(p.sectionId===_editingSectionId)p.sectionId=null;});
+  APP.markings.forEach(function(m){if(m.sectionId===_editingSectionId)m.sectionId=null;});
+  APP.repairAreas.forEach(function(r){if(r.sectionId===_editingSectionId)r.sectionId=null;});
+  APP.fieldNotes.forEach(function(n){if(n.sectionId===_editingSectionId)n.sectionId=null;});
+  if(APP.activeSectionId===_editingSectionId)APP.activeSectionId=null;
+  _editingSectionId=null;
+  save();
+  refreshSectionChip();
+  closeSectionDetail();
+  openSectionList();
+}
+
+function setActiveFromDetail(){
+  if(!_editingSectionId)return;
+  APP.activeSectionId=_editingSectionId;
+  save();refreshSectionChip();
+  var s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  alert('Active section: '+(s?s.sectionId+' — '+s.name:''));
+}
+
+/* Draw section boundary — reuses walk-area capture loop */
+function drawSectionBoundary(){
+  // Temporarily close the section modal, trigger walk-area, then on finish store verts
+  document.getElementById('section-modal').classList.remove('open');
+  alert('Walk the section boundary or tap the map to drop vertices, then press ✓ Finish.');
+  if(typeof toggleWalk==='function'){
+    _walkForSection=true;
+    toggleWalk();
+  }
+}
+var _walkForSection=false;
+// Hook into finishWalk — after it pops the repair modal, we intercept
+(function(){
+  if(typeof finishWalk!=='function')return;
+  var origFinish=finishWalk;
+  window.finishWalk=function(){
+    if(_walkForSection){
+      _walkForSection=false;
+      if(_walkVerts&&_walkVerts.length>=3){
+        _pendingSectionPoly=_walkVerts.slice();
+      }
+      // Clean walk state without opening repair modal
+      if(_walkLine)MAP.removeLayer(_walkLine);
+      _walkDots.forEach(function(d){MAP.removeLayer(d);});
+      _walkVerts=[];_walkDots=[];_walkLine=null;_walking=false;
+      clearInterval(_walkInterval);clearInterval(_walkTimerInterval);
+      var btn=document.getElementById('btn-walk');btn.classList.remove('walking');
+      document.getElementById('walk-icon').textContent='🚶';
+      document.getElementById('walk-label').textContent='Walk Area';
+      document.getElementById('walk-bar').classList.remove('active');
+      // Re-open section detail
+      openSectionDetail(_editingSectionId||'new');
+      return;
+    }
+    return origFinish.apply(this,arguments);
+  };
+})();
+
+function quickCapturePhoto(){
+  closeSectionDetail();
+  if(typeof capturePhoto==='function')capturePhoto();
+}
+function quickWalkArea(){
+  closeSectionDetail();
+  if(typeof toggleWalk==='function')toggleWalk();
+}
+
+/* ─── End Sections module ─── */
+
 if(!APP.markings)APP.markings=[];
 if(!APP.fieldNotes)APP.fieldNotes=[];
-updateCount();updateMarkingCount();updateNotesCount();refreshSiteLocations();
+if(!APP.sections)APP.sections=[];
+if(!('activeSectionId' in APP))APP.activeSectionId=null;
+updateCount();updateMarkingCount();updateNotesCount();refreshSiteLocations();refreshSectionChip();
 if(APP.nmKey||APP.claudeKey){
   document.getElementById('nm-setup').style.display='none';
   document.getElementById('nm-key-input').value=APP.nmKey||'';
