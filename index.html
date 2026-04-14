@@ -2030,6 +2030,7 @@ async function restoreAudioRefs(){
 
 /* ── GPS + Compass ── */
 var _lat=null,_lng=null,_acc=null,_heading=null,_geoWatch=null,_geoStatus='off';
+var _initialFitApplied=false; // true once we've framed the map to existing project data
 var _manualLocMarker=null; // marker for tap-to-set-location
 
 function startGPS(){
@@ -2045,8 +2046,13 @@ function startGPS(){
       if(p.coords.heading!=null&&!isNaN(p.coords.heading)&&p.coords.heading>=0)_heading=p.coords.heading;
       _geoStatus='on';
       updateGPSUI('on',_lat.toFixed(5)+', '+_lng.toFixed(5)+' ±'+Math.round(_acc)+'m');
-      // Center map on first fix
-      if(MAP&&!_firstFix){MAP.setView([_lat,_lng],18);_firstFix=true;}
+      // Center map on first fix — but only if no project data already
+      // framed the view. Level 17 is close enough to see site detail
+      // without pulling the user in so far they lose context.
+      if(MAP&&!_firstFix){
+        _firstFix=true;
+        if(!_initialFitApplied)MAP.setView([_lat,_lng],17);
+      }
     },
     function(e){
       _geoStatus='manual';
@@ -4444,6 +4450,28 @@ function polygonArea(verts){
 function updateCount(){document.getElementById('photo-count').textContent=APP.photos.length;}
 
 /* ═══ ZOOM TO BOUNDS ═══ */
+/* Fit the map to existing project data on load so the user sees their
+   sections instead of being slammed into level-18 GPS view. Falls back
+   to no-op if there's nothing to frame. */
+function fitToProjectData(){
+  if(!MAP||_initialFitApplied)return;
+  var pts=[];
+  (APP.sections||[]).forEach(function(s){
+    if(s.polygon&&s.polygon.length)s.polygon.forEach(function(v){pts.push(v);});
+  });
+  // If no section boundaries, also consider photo markers
+  if(!pts.length){
+    (APP.photos||[]).forEach(function(p){if(p.lat&&p.lng)pts.push([p.lat,p.lng]);});
+  }
+  if(pts.length<1)return;
+  try{
+    if(pts.length===1){MAP.setView(pts[0],17);}
+    else{MAP.fitBounds(L.latLngBounds(pts),{padding:[50,50],maxZoom:18});}
+    _initialFitApplied=true;
+    _firstFix=true; // prevent the GPS first-fix from overriding our framing
+  }catch(e){}
+}
+
 function fitAllMarkers(){
   if(!MAP)return;
   var bounds=[];
@@ -7136,7 +7164,7 @@ if(APP.nmKey||APP.claudeKey){
 }
 initMap();
 // Install the single-point capture click handler as soon as MAP exists
-setTimeout(function(){_installPointCaptureHandler();refreshSectionOverlay();},500);
+setTimeout(function(){_installPointCaptureHandler();refreshSectionOverlay();fitToProjectData();},500);
 startGPS();
 // Restore zones from IDB then redraw overlay
 loadZonesAsync().then(function(){
@@ -7144,7 +7172,10 @@ loadZonesAsync().then(function(){
   refreshSiteLocations();
 }).catch(function(){refreshSiteLocations();});
 // Restore full app data from IDB (overrides localStorage if more complete)
-loadFromIDB().then(function(){refreshSectionOverlay();}).catch(function(){});
+loadFromIDB().then(function(){
+  refreshSectionOverlay();
+  fitToProjectData();
+}).catch(function(){});
 // Restore audio blob references from IndexedDB (async, non-blocking)
 restoreAudioRefs().then(function(){
   rebuildMarkers();
