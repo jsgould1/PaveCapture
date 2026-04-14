@@ -39,8 +39,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 /* GPS bar */
 #gps-bar{
-  position:absolute;top:8px;left:8px;right:8px;z-index:500;
-  display:flex;gap:6px;align-items:center;pointer-events:none;
+  position:absolute;top:52px;left:8px;right:8px;z-index:500;
+  display:flex;gap:6px;align-items:center;pointer-events:none;flex-wrap:wrap;justify-content:flex-end;
 }
 #gps-bar>*{pointer-events:auto;}
 .gps-pill{
@@ -449,11 +449,37 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 #sec-chip.empty .sc-id{background:var(--border);color:var(--muted);}
 #sec-chip .sc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-#section-list-modal,#section-modal{
+/* Section list stays a full-screen modal */
+#section-list-modal{
   display:none;position:fixed;inset:0;z-index:900;background:var(--bg);
   flex-direction:column;overflow:hidden;
 }
-#section-list-modal.open,#section-modal.open{display:flex;}
+#section-list-modal.open{display:flex;}
+
+/* Section DETAIL is a bottom sheet — hovers over the map, keeping map interactive */
+#section-modal{
+  display:none;position:fixed;left:0;right:0;bottom:0;z-index:700;
+  background:var(--bg);
+  height:65vh;max-height:65vh;min-height:200px;
+  border-top-left-radius:18px;border-top-right-radius:18px;
+  border-top:1px solid var(--accent);
+  box-shadow:0 -12px 32px rgba(0,0,0,.55);
+  flex-direction:column;overflow:hidden;
+  transform:translateY(100%);transition:transform .28s ease-out,height .28s ease-out;
+  pointer-events:none;
+}
+#section-modal.open{display:flex;transform:translateY(0);pointer-events:auto;}
+#section-modal.collapsed{height:56px !important;min-height:56px;}
+#section-modal.expanded{height:92vh !important;max-height:92vh;}
+
+#sec-drag-handle{
+  background:var(--surface);padding:6px 0 2px;text-align:center;cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+#sec-drag-handle .handle-pill{
+  display:inline-block;width:42px;height:4px;border-radius:2px;background:var(--muted);opacity:.6;
+}
+#sec-drag-handle:active .handle-pill{opacity:1;}
 .sec-header{
   background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
   border-bottom:1px solid var(--border);flex-shrink:0;
@@ -618,6 +644,24 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 /* Adjustment: row geom bar sits on top */
 .inv-row .row-geom-bar button:active{transform:scale(.96);}
 
+/* ═══ TOP-OF-MAP ACTION BAR (compact) ═══ */
+#top-map-actions{
+  position:absolute;top:8px;left:8px;z-index:600;
+  display:flex;gap:6px;
+}
+.tma-btn{
+  background:rgba(15,23,42,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--accent);color:var(--accent);
+  padding:7px 11px;border-radius:10px;font-size:12px;font-weight:800;
+  cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);
+  display:flex;align-items:center;gap:4px;line-height:1;
+}
+.tma-btn:active{transform:scale(.96);background:var(--bg);}
+.tma-btn.active{background:var(--green);color:#000;border-color:var(--green);}
+
+/* Hide the old fixed bottom action bar entirely */
+#action-bar{display:none !important;}
+
 /* ═══ BOTTOM-LEFT MAP INFO BAR (GPS + Nearmap) ═══ */
 #map-info-bl{
   position:absolute;left:8px;bottom:12px;z-index:500;
@@ -701,13 +745,21 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <div id="map-area">
     <div id="map-el"></div>
 
+    <!-- Top-of-map compact action bar -->
+    <div id="top-map-actions">
+      <button class="tma-btn" onclick="openSectionDetail('new')" title="New section"><span style="font-size:14px;font-weight:800">＋</span> Section</button>
+      <button class="tma-btn" onclick="mergedCapturePhoto()" title="Take photo or pick from library">📷 Photo</button>
+      <button class="tma-btn" id="tma-draw-btn" onclick="toggleWalk()" title="Draw a polygon / walk area"><span id="tma-draw-icon">📐</span> <span id="tma-draw-label">Draw</span></button>
+      <button class="tma-btn" onclick="openNotesPanel()" title="Field notes">📝</button>
+    </div>
+
     <!-- Floating action buttons -->
-    <button id="fab-new-section" onclick="openSectionDetail('new')" title="New Section">
-      <span style="font-size:17px">＋</span> <span>New Section</span>
-    </button>
     <button id="fab-fitall" onclick="fitAllMarkers()" title="Zoom to fit everything">⊙</button>
     <button id="fab-locate" onclick="zoomToLocation()" title="Zoom to my location">⊕</button>
     <button id="fab-streetview" onclick="openStreetView()" title="Open Street View at current location">👁</button>
+
+    <!-- Hidden walk-button mirror so existing walk JS keeps working -->
+    <button id="btn-walk" style="display:none"><span id="walk-icon">🚶</span><span id="walk-label">Walk Area</span></button>
     <div id="gps-bar">
       <div class="gps-pill" id="heading-pill" style="display:none">
         <span id="heading-arrow" style="display:inline-block;transition:transform .3s">↑</span>
@@ -767,33 +819,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     </div>
   </div>
 
-  <!-- BOTTOM ACTION BAR -->
-  <div id="action-bar">
-    <button class="action-btn" id="btn-capture" onclick="capturePhoto()">
-      <span class="icon">📷</span>
-      <span class="label">Capture</span>
-    </button>
-    <button class="action-btn" id="btn-import" onclick="importPhotos()" style="background:var(--blue);color:#fff;">
-      <span class="icon">🗂</span>
-      <span class="label">Import</span>
-    </button>
-    <button class="action-btn" id="btn-marking" onclick="captureMarking()" style="background:#3b82f6;color:#fff;">
-      <span class="icon">🛣️</span>
-      <span class="label">Markings</span>
-    </button>
-    <button class="action-btn" id="btn-notes" onclick="openNotesPanel()" style="background:#0ea5e9;color:#fff;">
-      <span class="icon">📝</span>
-      <span class="label">Notes</span>
-    </button>
-    <button class="action-btn" id="btn-walk" onclick="toggleWalk()">
-      <span class="icon" id="walk-icon">🚶</span>
-      <span class="label" id="walk-label">Walk Area</span>
-    </button>
-  </div>
-
   <!-- Hidden file inputs -->
   <input type="file" id="cam-input" accept="image/*" capture="environment" style="display:none" multiple>
   <input type="file" id="import-input" accept="image/*" style="display:none" multiple>
+  <input type="file" id="photo-input" accept="image/*" style="display:none" multiple>
   <input type="file" id="marking-cam-input" accept="image/*" capture="environment" style="display:none">
   <input type="file" id="marking-import-input" accept="image/*" style="display:none" multiple>
 
@@ -1206,9 +1235,13 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 
 <!-- ═══ SECTION DETAIL MODAL ═══ -->
 <div id="section-modal">
+  <div id="sec-drag-handle" onclick="toggleSectionSheet()" title="Tap to collapse / expand">
+    <div class="handle-pill"></div>
+  </div>
   <div class="sec-header">
     <button class="close" onclick="closeSectionDetail()" style="font-size:18px">←</button>
     <div class="sec-title" id="sec-det-title">Section</div>
+    <button class="sec-switch-btn" onclick="zoomToSectionBounds()" id="sec-det-zoom" style="display:none">⊙ Zoom</button>
     <button class="sec-switch-btn" onclick="setActiveFromDetail()" id="sec-det-setactive">Set Active</button>
     <button class="close" onclick="closeSectionDetail()">✕</button>
   </div>
@@ -1530,6 +1563,12 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <button onclick="importZonesPrompt()" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:12px;font-weight:700">📥 Import</button>
       </div>
     </div>
+    <div class="settings-section">
+      <h3>🛣️ Legacy Marking Log</h3>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">The old standalone Marking module (parking, lines, signs) is now covered by Section tiers. Existing marking records are still readable here.</p>
+      <button onclick="closeSettings();setTimeout(openMarkingList,100)" style="width:100%;padding:10px;background:var(--bg);border:1px solid #3b82f6;border-radius:8px;color:#3b82f6;font-size:13px;font-weight:700">🛣️ Open Marking Log</button>
+    </div>
+
     <div class="settings-section">
       <h3>💾 Data &amp; Backup</h3>
       <div id="storage-status" style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5;"></div>
@@ -2903,6 +2942,26 @@ function capturePhoto(){
   inp.click();
 }
 
+/* ═══ MERGED CAPTURE + IMPORT ═══
+   Single entry point for taking a photo OR picking from the camera roll.
+   The no-capture attribute on #photo-input lets the mobile OS picker
+   present both options. One file → single-photo flow; many → batch. */
+function mergedCapturePhoto(){
+  var inp=document.getElementById('photo-input');
+  inp.onchange=function(){
+    if(!inp.files.length)return;
+    var files=Array.from(inp.files);
+    if(files.length===1){
+      _pendingPhotos=files;
+      _currentPhotoIdx=0;
+      processNextPending();
+    }else{
+      batchImport(files).then(function(){inp.value='';}).catch(function(){inp.value='';});
+    }
+  };
+  inp.click();
+}
+
 /* ═══ BATCH IMPORT FROM CAMERA ROLL ═══ */
 function importPhotos(){
   var inp=document.getElementById('import-input');
@@ -3811,6 +3870,7 @@ function startWalk(){
   }
   _walkTimerInterval=setInterval(updateWalkTimer,1000);
   updateWalkStats();
+  if(typeof _syncDrawButton==='function')_syncDrawButton();
 }
 
 function addWalkVertex(lat,lng){
@@ -4228,6 +4288,7 @@ function tapEditVertices(){
   document.getElementById('walk-hint-text').textContent='Tap map to add points · Tap ✓ Finish when done';
   _walkTimerInterval=setInterval(updateWalkTimer,1000);
   updateWalkStats();
+  if(typeof _syncDrawButton==='function')_syncDrawButton();
 }
 
 var _editingRepairForRewalk=null;
@@ -5766,7 +5827,8 @@ function renderSectionList(){
 function openSectionDetail(id){
   closeSectionList();
   var s;
-  if(id==='new'){
+  var isNew=(id==='new');
+  if(isNew){
     s=newSectionObject();
     _editingSectionId=null;
   }else{
@@ -5777,7 +5839,8 @@ function openSectionDetail(id){
   _pendingSectionPoly=s.polygon?s.polygon.slice():null;
 
   // Populate form
-  document.getElementById('sec-det-title').textContent=_editingSectionId?(s.sectionId||'Section'):'New Section';
+  var titleText=isNew?'＋ New Section':((s.sectionId||'Section')+' — '+(s.name||''));
+  document.getElementById('sec-det-title').textContent=titleText;
   document.getElementById('sec-f-id').value=s.sectionId||'';
   document.getElementById('sec-f-name').value=s.name||'';
   document.getElementById('sec-f-type').value=s.type||'Roadway';
@@ -5793,6 +5856,9 @@ function openSectionDetail(id){
     _pendingSectionPoly?(_pendingSectionPoly.length+' vertices drawn'):'No boundary drawn';
   document.getElementById('sec-det-delete').style.display=_editingSectionId?'block':'none';
   document.getElementById('sec-det-setactive').style.display=_editingSectionId?'inline-block':'none';
+  // Zoom-to-bounds button only appears when a boundary exists
+  var zBtn=document.getElementById('sec-det-zoom');
+  if(zBtn)zBtn.style.display=(_pendingSectionPoly&&_pendingSectionPoly.length>=3)?'inline-block':'none';
 
   // Populate tier rows
   SECTION_TIERS.forEach(function(k){
@@ -5803,15 +5869,82 @@ function openSectionDetail(id){
     secUpdateCount(k);
   });
 
+  // Update top header chip to reflect what we're currently editing
+  refreshEditingSectionChip(s);
+
   document.getElementById('section-modal').classList.add('open');
+  document.getElementById('section-modal').classList.remove('collapsed');
   renderTierNav();
-  // Scroll tiers back to top
   setTimeout(function(){document.getElementById('sec-det-body').scrollTop=0;},20);
+
+  // If this is an existing section with a boundary, zoom the map to it
+  if(!isNew&&_pendingSectionPoly&&_pendingSectionPoly.length>=3){
+    zoomToSectionBounds();
+  }
+
+  // New section flow: prompt the user to draw the boundary FIRST if nothing
+  // has been drawn yet. We wait for them to fill in ID+Name on the overview
+  // (required before draw) and then offer to start the walk.
+  if(isNew&&!_pendingSectionPoly){
+    _newSectionPendingDraw=true;
+    showCaptureToast('📐 Fill in Section ID + Name, then tap ✏️ Draw Boundary to trace the area on the map.');
+  }
+}
+
+var _newSectionPendingDraw=false;
+
+function refreshEditingSectionChip(s){
+  // Update the top-bar chip to show "Editing: SECTION-ID — Name" when a
+  // section detail is open, else fall back to the active-section chip.
+  var chip=document.getElementById('sec-chip');
+  var idEl=document.getElementById('sec-chip-id');
+  var nameEl=document.getElementById('sec-chip-name');
+  if(!chip||!s)return;
+  chip.classList.remove('empty');
+  chip.style.borderColor='var(--green)';
+  chip.style.color='var(--green)';
+  idEl.style.background='var(--green)';
+  idEl.textContent='EDIT '+(s.sectionId||'…');
+  nameEl.textContent=s.name||'(unnamed)';
+}
+
+function zoomToSectionBounds(){
+  if(!MAP)return;
+  var poly=_pendingSectionPoly;
+  if(!poly||poly.length<2){
+    // Fall back to stored polygon on the section if we're editing one
+    var s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+    if(s&&s.polygon&&s.polygon.length>=2)poly=s.polygon;
+  }
+  if(!poly||poly.length<2){alert('No boundary drawn for this section yet.');return;}
+  try{
+    var b=L.latLngBounds(poly);
+    // Pad so the polygon isn't edge-to-edge behind the bottom sheet
+    MAP.fitBounds(b,{padding:[40,40],maxZoom:20});
+  }catch(e){}
+}
+
+function toggleSectionSheet(){
+  var el=document.getElementById('section-modal');
+  if(!el)return;
+  if(el.classList.contains('collapsed')){
+    el.classList.remove('collapsed');
+  }else if(el.classList.contains('expanded')){
+    el.classList.remove('expanded');
+  }else{
+    // Normal → collapsed (peek mode)
+    el.classList.add('collapsed');
+  }
 }
 
 function closeSectionDetail(){
   document.getElementById('section-modal').classList.remove('open');
+  document.getElementById('section-modal').classList.remove('collapsed');
+  document.getElementById('section-modal').classList.remove('expanded');
   _pendingSectionPoly=null;
+  _newSectionPendingDraw=false;
+  // Restore the active-section chip (or empty state) after editing ends
+  refreshSectionChip();
 }
 
 function toggleSecTier(tid){
@@ -6264,8 +6397,17 @@ function saveSection(){
   save();
   refreshSectionChip();
   refreshSectionOverlay();
-  closeSectionDetail();
-  openSectionList();
+  // Update the editing chip and title since ID/Name may have changed
+  refreshEditingSectionChip(s);
+  var titleEl=document.getElementById('sec-det-title');
+  if(titleEl)titleEl.textContent=(s.sectionId||'Section')+' — '+(s.name||'');
+  document.getElementById('sec-det-delete').style.display='block';
+  document.getElementById('sec-det-setactive').style.display='inline-block';
+  var zBtn=document.getElementById('sec-det-zoom');
+  if(zBtn)zBtn.style.display=(s.polygon&&s.polygon.length>=3)?'inline-block':'none';
+  showCaptureToast('✓ Section '+(s.sectionId||'')+' saved');
+  // Do NOT close the sheet — keep the map + form visible so the user can
+  // continue adding tier rows and drawing geometry in one flow.
 }
 
 function deleteSection(){
@@ -6297,9 +6439,19 @@ function setActiveFromDetail(){
 
 /* Draw section boundary — reuses walk-area capture loop */
 function drawSectionBoundary(){
-  // Temporarily close the section modal, trigger walk-area, then on finish store verts
-  document.getElementById('section-modal').classList.remove('open');
-  alert('Walk the section boundary or tap the map to drop vertices, then press ✓ Finish.');
+  // Ensure we have a saved section before drawing so the draw can return to it.
+  if(!_editingSectionId){
+    var sid=document.getElementById('sec-f-id').value.trim();
+    var sname=document.getElementById('sec-f-name').value.trim();
+    if(!sid||!sname){
+      alert('Fill in Section ID and Name first, then tap Draw Boundary.');
+      return;
+    }
+  }
+  // Collapse the sheet so the map is fully visible while drawing
+  var modal=document.getElementById('section-modal');
+  modal.classList.add('collapsed');
+  showCaptureToast('📐 Walk the boundary or tap the map to drop vertices, then tap Finish.');
   if(typeof toggleWalk==='function'){
     _walkForSection=true;
     toggleWalk();
@@ -6317,7 +6469,20 @@ var _walkForSection=false;
         _pendingSectionPoly=_walkVerts.slice();
       }
       _cleanupWalkState();
-      openSectionDetail(_editingSectionId||'new');
+      // Update the form's boundary status inline — the sheet is only
+      // collapsed, so the form fields are preserved as-is.
+      var statusEl=document.getElementById('sec-f-poly-status');
+      if(statusEl)statusEl.textContent=_pendingSectionPoly?(_pendingSectionPoly.length+' vertices drawn'):'No boundary drawn';
+      var zBtn=document.getElementById('sec-det-zoom');
+      if(zBtn)zBtn.style.display=(_pendingSectionPoly&&_pendingSectionPoly.length>=3)?'inline-block':'none';
+      // Re-open / un-collapse the sheet
+      var modal=document.getElementById('section-modal');
+      modal.classList.remove('collapsed');
+      if(!modal.classList.contains('open'))modal.classList.add('open');
+      // Fit the map to the new boundary so the user sees it immediately
+      if(_pendingSectionPoly&&_pendingSectionPoly.length>=3){
+        zoomToSectionBounds();
+      }
       return;
     }
     if(_rowCaptureTarget){
@@ -6342,6 +6507,24 @@ function _cleanupWalkState(){
   var ic=document.getElementById('walk-icon');if(ic)ic.textContent='🚶';
   var lb=document.getElementById('walk-label');if(lb)lb.textContent='Walk Area';
   var wb=document.getElementById('walk-bar');if(wb)wb.classList.remove('active');
+  _syncDrawButton();
+}
+
+// Keep the visible top-of-map Draw button in sync with walk state
+function _syncDrawButton(){
+  var dbtn=document.getElementById('tma-draw-btn');
+  var dic=document.getElementById('tma-draw-icon');
+  var dlb=document.getElementById('tma-draw-label');
+  if(!dbtn)return;
+  if(_walking){
+    dbtn.classList.add('active');
+    if(dic)dic.textContent='⏹';
+    if(dlb)dlb.textContent='Finish';
+  }else{
+    dbtn.classList.remove('active');
+    if(dic)dic.textContent='📐';
+    if(dlb)dlb.textContent='Draw';
+  }
 }
 
 /* Map tap handler for single-point capture mode.
