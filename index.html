@@ -427,20 +427,22 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .inv-row{
   background:var(--bg);border:1px solid var(--border);border-radius:10px;
   padding:10px;margin-bottom:8px;position:relative;
+  min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;
 }
 .inv-row .inv-del{
   position:absolute;top:6px;right:6px;background:none;border:none;
   color:var(--muted);font-size:16px;padding:2px 6px;cursor:pointer;
 }
 .inv-row .inv-del:active{color:var(--red);}
-.inv-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.inv-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;min-width:0;}
 .inv-fields.three-col{grid-template-columns:1fr 1fr 1fr;}
-.inv-field{display:flex;flex-direction:column;gap:2px;}
+.inv-field{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .inv-field.full{grid-column:1/-1;}
 .inv-field label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
 .inv-field input,.inv-field select,.inv-field textarea{
   padding:7px 8px;background:var(--surface);border:1px solid var(--border);
   border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;
+  width:100%;min-width:0;max-width:100%;box-sizing:border-box;
 }
 .inv-field input:focus,.inv-field select:focus,.inv-field textarea:focus{border-color:var(--accent);outline:none;}
 .inv-add-btn{
@@ -571,7 +573,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 /* Section detail — tier accordion */
 .sec-tier{
   margin-bottom:10px;border:1px solid var(--border);border-radius:12px;
-  background:var(--surface);overflow:hidden;
+  background:var(--surface);overflow:hidden;min-width:0;max-width:100%;
 }
 .sec-tier-head{
   display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;
@@ -583,7 +585,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .sec-tier-head .st-chev{color:var(--muted);font-size:13px;transition:transform .2s;}
 .sec-tier.collapsed .st-body{display:none;}
 .sec-tier.collapsed .st-chev{transform:rotate(-90deg);}
-.sec-tier .st-body{padding:10px 12px 14px;border-top:1px solid var(--border);background:var(--bg);}
+.sec-tier .st-body{padding:10px 12px 14px;border-top:1px solid var(--border);background:var(--bg);min-width:0;overflow:hidden;}
 
 .sec-switch-btn{
   background:var(--bg);border:1px solid var(--accent);color:var(--accent);
@@ -698,7 +700,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   font-size:8px;font-weight:800;color:var(--accent);background:rgba(245,158,11,.15);
   padding:1px 5px;border-radius:6px;min-width:14px;text-align:center;
 }
-#section-modal .sec-body-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;}
+#section-modal .sec-body-main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:12px;min-width:0;}
 
 /* Adjustment: row geom bar sits on top */
 .inv-row .row-geom-bar button:active{transform:scale(.96);}
