@@ -30,6 +30,25 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   background:var(--surface);padding:5px 8px;display:flex;align-items:center;gap:6px;
   border-bottom:1px solid var(--border);flex-shrink:0;min-height:40px;
 }
+/* Third row — photo count + active photo type pills, aligned to the ends */
+#top-stats-row{
+  background:var(--surface);padding:6px 10px;display:flex;align-items:center;
+  justify-content:space-between;gap:8px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#top-stats-row #photo-count-pill{
+  position:static;background:rgba(15,23,42,.85);border:1px solid var(--border);
+  border-radius:24px;padding:7px 16px;font-size:14px;font-weight:800;color:var(--accent);
+  margin-left:0;display:inline-flex;align-items:center;gap:6px;
+}
+#top-stats-row #photo-count-pill span{color:var(--accent);font-weight:900;}
+#top-stats-row #photo-type-pill{
+  background:rgba(15,23,42,.85);border:1px solid var(--accent);border-radius:24px;
+  padding:7px 14px;font-size:14px;font-weight:800;color:var(--text);
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+}
+#top-stats-row #photo-type-pill .ptp-label{color:var(--muted);font-weight:700;}
+#top-stats-row #photo-type-pill .ptp-name{color:var(--accent);font-weight:900;}
 #top-section-row .tma-group{display:flex;gap:4px;align-items:center;flex-shrink:0;}
 #top-section-row #sec-select{flex:1 1 auto;min-width:0;max-width:none;margin-left:auto;}
 #top-section-row .tma-edit-btn{padding:6px 8px;flex-shrink:0;}
@@ -797,7 +816,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <!-- Second-level row — compact actions (left) + section dropdown (right) -->
   <div id="top-section-row">
     <div class="tma-group">
-      <button class="tma-btn" onclick="openSectionDetail('new')" title="New section"><span style="font-size:13px;font-weight:900">＋</span>Sec</button>
+      <button class="tma-btn" onclick="openSectionDetail('new')" title="Add section"><span style="font-size:13px;font-weight:900">＋</span>ADD</button>
       <button class="tma-btn" onclick="mergedCapturePhoto()" title="Take photo or pick from library">📷</button>
       <button class="tma-btn" id="tma-draw-btn" onclick="toggleWalk()" title="Draw polygon / walk area"><span id="tma-draw-icon">📐</span><span id="tma-draw-label" style="display:none">Draw</span></button>
       <button class="tma-btn" onclick="openNotesPanel()" title="Field notes">📝</button>
@@ -806,6 +825,14 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <option value="">— No section —</option>
     </select>
     <button class="top-btn tma-edit-btn" onclick="openSectionDetail(APP.activeSectionId||'new')" title="Edit / create section">✏️</button>
+  </div>
+
+  <!-- Third row — larger photo count + active-type pills -->
+  <div id="top-stats-row">
+    <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🛣️ <span id="marking-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
+    <button id="photo-type-pill" onclick="openPhotoLayers()" title="Photo type &amp; layers">
+      <span class="ptp-label">Type:</span> <span class="ptp-name" id="photo-type-pill-name">Vicinity</span> ▾
+    </button>
   </div>
 
   <!-- MAP -->
@@ -824,10 +851,6 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <span id="heading-arrow" style="display:inline-block;transition:transform .3s">↑</span>
         <span id="heading-text">—°</span>
       </div>
-      <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🛣️ <span id="marking-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
-      <button id="photo-type-pill" onclick="openPhotoLayers()" title="Photo type &amp; layers">
-        <span class="ptp-label">Type:</span> <span class="ptp-name" id="photo-type-pill-name">Vicinity</span> ▾
-      </button>
     </div>
 
     <!-- Walk tracking bar -->
