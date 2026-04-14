@@ -30,12 +30,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   background:var(--surface);padding:5px 8px;display:flex;align-items:center;gap:6px;
   border-bottom:1px solid var(--border);flex-shrink:0;min-height:40px;
 }
-/* Third row — photo count + active photo type pills, aligned to the ends */
+/* Overlay row inside the map — floats over the top of the map, does not
+   consume vertical space. Pills have their own backgrounds. */
 #top-stats-row{
-  background:var(--surface);padding:6px 10px;display:flex;align-items:center;
-  justify-content:space-between;gap:8px;
-  border-bottom:1px solid var(--border);flex-shrink:0;
+  position:absolute;top:8px;left:8px;right:8px;z-index:500;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  pointer-events:none;
 }
+#top-stats-row>*{pointer-events:auto;}
 #top-stats-row #photo-count-pill{
   position:static;background:rgba(15,23,42,.85);border:1px solid var(--border);
   border-radius:24px;padding:7px 16px;font-size:14px;font-weight:800;color:var(--accent);
@@ -827,17 +829,17 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     <button class="top-btn tma-edit-btn" onclick="openSectionDetail(APP.activeSectionId||'new')" title="Edit / create section">✏️</button>
   </div>
 
-  <!-- Third row — larger photo count + active-type pills -->
-  <div id="top-stats-row">
-    <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🛣️ <span id="marking-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
-    <button id="photo-type-pill" onclick="openPhotoLayers()" title="Photo type &amp; layers">
-      <span class="ptp-label">Type:</span> <span class="ptp-name" id="photo-type-pill-name">Vicinity</span> ▾
-    </button>
-  </div>
-
   <!-- MAP -->
   <div id="map-area">
     <div id="map-el"></div>
+
+    <!-- Overlay row — larger photo count + active-type pills, hovering top of map -->
+    <div id="top-stats-row">
+      <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🛣️ <span id="marking-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
+      <button id="photo-type-pill" onclick="openPhotoLayers()" title="Photo type &amp; layers">
+        <span class="ptp-label">Type:</span> <span class="ptp-name" id="photo-type-pill-name">Vicinity</span> ▾
+      </button>
+    </div>
 
     <!-- Floating action buttons -->
     <button id="fab-fitall" onclick="fitAllMarkers()" title="Zoom to fit everything">⊙</button>
