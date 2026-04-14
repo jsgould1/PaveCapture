@@ -575,7 +575,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   display:flex;align-items:center;gap:6px;
 }
 #fab-new-section:active{transform:scale(.96);}
-#fab-locate,#fab-streetview{
+#fab-fitall,#fab-locate,#fab-streetview{
   position:absolute;right:8px;z-index:500;
   width:44px;height:44px;border-radius:22px;border:1px solid var(--border);
   background:rgba(15,23,42,.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
@@ -583,9 +583,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 4px 12px rgba(0,0,0,.4);
 }
+#fab-fitall{bottom:198px;}
 #fab-locate{bottom:148px;}
 #fab-streetview{bottom:98px;}
-#fab-locate:active,#fab-streetview:active{background:var(--bg);}
+#fab-fitall:active,#fab-locate:active,#fab-streetview:active{background:var(--bg);}
 
 /* Point-capture cursor & feedback */
 #map-area.point-capture-mode #map-el{cursor:crosshair !important;}
@@ -616,6 +617,59 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 
 /* Adjustment: row geom bar sits on top */
 .inv-row .row-geom-bar button:active{transform:scale(.96);}
+
+/* ═══ BOTTOM-LEFT MAP INFO BAR (GPS + Nearmap) ═══ */
+#map-info-bl{
+  position:absolute;left:8px;bottom:12px;z-index:500;
+  display:flex;flex-direction:column;gap:6px;align-items:flex-start;
+  pointer-events:none;
+}
+#map-info-bl>*{pointer-events:auto;}
+#map-info-bl .gps-pill{background:rgba(15,23,42,.85);}
+
+/* When the walk bar is active, push the info-bar up so they don't overlap */
+#walk-bar.active ~ #map-info-bl{bottom:68px;}
+
+/* ═══ STREET VIEW MODAL (in-app iframe) ═══ */
+#streetview-modal{
+  display:none;position:fixed;inset:0;z-index:960;background:#000;
+  flex-direction:column;
+}
+#streetview-modal.open{display:flex;}
+#sv-header{
+  background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  padding-top:max(10px,env(safe-area-inset-top));
+}
+#sv-header .sv-title{font-weight:800;font-size:14px;color:var(--text);flex:1;}
+#sv-header .sv-sub{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;}
+#sv-header button.sv-close{
+  background:var(--bg);border:1px solid var(--red);color:var(--red);
+  padding:8px 14px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;
+}
+#sv-frame-wrap{flex:1;position:relative;overflow:hidden;}
+#sv-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+#sv-nokey{
+  position:absolute;inset:0;background:var(--bg);color:var(--text);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+#sv-nokey .card{
+  max-width:420px;background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:22px;text-align:left;
+}
+#sv-nokey .card h3{font-size:16px;font-weight:800;color:var(--accent);margin-bottom:8px;}
+#sv-nokey .card p{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;}
+#sv-nokey .card ol{font-size:12px;color:var(--text);padding-left:18px;margin-bottom:12px;}
+#sv-nokey .card ol li{margin-bottom:4px;}
+#sv-nokey .card input{
+  width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:8px;color:var(--text);font-family:monospace;font-size:12px;margin-bottom:8px;
+}
+#sv-nokey .card button{
+  width:100%;padding:11px;background:var(--accent);color:#000;border:none;
+  border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:6px;
+}
+#sv-nokey .card button.alt{background:var(--bg);color:var(--text);border:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -651,13 +705,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     <button id="fab-new-section" onclick="openSectionDetail('new')" title="New Section">
       <span style="font-size:17px">＋</span> <span>New Section</span>
     </button>
+    <button id="fab-fitall" onclick="fitAllMarkers()" title="Zoom to fit everything">⊙</button>
     <button id="fab-locate" onclick="zoomToLocation()" title="Zoom to my location">⊕</button>
     <button id="fab-streetview" onclick="openStreetView()" title="Open Street View at current location">👁</button>
     <div id="gps-bar">
-      <div class="gps-pill" id="gps-indicator">
-        <div class="gps-dot off" id="gps-dot"></div>
-        <span id="gps-text">GPS Off</span>
-      </div>
       <div class="gps-pill" id="heading-pill" style="display:none">
         <span id="heading-arrow" style="display:inline-block;transition:transform .3s">↑</span>
         <span id="heading-text">—°</span>
@@ -666,8 +717,6 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <button id="photo-type-pill" onclick="openPhotoLayers()" title="Photo type &amp; layers">
         <span class="ptp-label">Type:</span> <span class="ptp-name" id="photo-type-pill-name">Vicinity</span> ▾
       </button>
-      <button class="fit-btn" onclick="fitAllMarkers()">⊙ Fit All</button>
-      <div id="nm-pill" class="gps-pill" style="display:none;color:#f59e0b">📸 <span id="nm-pill-text">Nearmap</span></div>
     </div>
 
     <!-- Walk tracking bar -->
@@ -678,6 +727,15 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <button id="walk-finish-btn" onclick="finishWalk()">✓ Finish</button>
       <button id="walk-cancel-btn" onclick="cancelWalk()">✕</button>
       <div id="walk-hint-text" style="position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:10px;color:var(--green);font-weight:600;"></div>
+    </div>
+
+    <!-- Bottom-left info bar: GPS coords + Nearmap status -->
+    <div id="map-info-bl">
+      <div class="gps-pill" id="gps-indicator">
+        <div class="gps-dot off" id="gps-dot"></div>
+        <span id="gps-text">GPS Off</span>
+      </div>
+      <div id="nm-pill" class="gps-pill" style="display:none;color:#f59e0b">📸 <span id="nm-pill-text">Nearmap</span></div>
     </div>
 
     <!-- Setup overlay -->
@@ -1087,6 +1145,34 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   </div>
 </div>
 
+<!-- ═══ STREET VIEW MODAL ═══ -->
+<div id="streetview-modal">
+  <div id="sv-header">
+    <div style="flex:1">
+      <div class="sv-title">👁 Street View</div>
+      <div class="sv-sub" id="sv-subtitle">—</div>
+    </div>
+    <button class="sv-close" onclick="closeStreetView()">✕ Exit</button>
+  </div>
+  <div id="sv-frame-wrap">
+    <iframe id="sv-frame" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <div id="sv-nokey" style="display:none">
+      <div class="card">
+        <h3>Google Maps Embed API key required</h3>
+        <p>To show Street View inside the app, paste a Google Maps <b>Embed API</b> key below. The Embed API is free and has no quota — you just need a Google Cloud project with the Maps Embed API enabled.</p>
+        <ol>
+          <li>Go to <b>console.cloud.google.com</b> → APIs &amp; Services → Enable <b>Maps Embed API</b>.</li>
+          <li>Credentials → Create API key.</li>
+          <li>Paste it here and tap Save.</li>
+        </ol>
+        <input type="text" id="sv-key-input" placeholder="AIza...">
+        <button onclick="saveStreetViewKey()">Save &amp; Open Street View</button>
+        <button class="alt" onclick="openStreetViewExternal()">Open in Google Maps instead</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ PHOTO TYPE / LAYERS MODAL ═══ -->
 <div id="photo-layers-modal">
   <div class="pl-head">
@@ -1399,6 +1485,11 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <div class="fm-group"><input type="text" class="fm-input" id="set-claude-key" placeholder="Claude API key (sk-ant-...)" autocomplete="off"></div>
     </div>
     <div class="settings-section">
+      <h3>👁 Google Street View</h3>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">For in-app Street View. The Maps Embed API is free (no quota). Create a key at <b>console.cloud.google.com</b> → enable <b>Maps Embed API</b>.</p>
+      <div class="fm-group"><input type="text" class="fm-input" id="set-google-embed-key" placeholder="Google Maps Embed API key" autocomplete="off"></div>
+    </div>
+    <div class="settings-section">
       <h3>🔖 Photo Watermark</h3>
       <div class="fm-group">
         <div class="fm-label">Company / Project Name</div>
@@ -1623,7 +1714,7 @@ var PHOTO_TYPES=[
 ];
 
 var APP={
-  nmKey:NM_DEFAULT_KEY,nmDate:'',claudeKey:CLAUDE_DEFAULT_KEY,
+  nmKey:NM_DEFAULT_KEY,nmDate:'',claudeKey:CLAUDE_DEFAULT_KEY,googleEmbedKey:'',
   watermark:{enabled:true,text:'PaveCapture — Pavement Preservation Scoping',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70},
   markings:[],
   fieldNotes:[],
@@ -2266,6 +2357,7 @@ function openSettings(){
   el.classList.add('open');
   document.getElementById('set-nm-key').value=APP.nmKey||'';
   document.getElementById('set-claude-key').value=APP.claudeKey||'';
+  document.getElementById('set-google-embed-key').value=APP.googleEmbedKey||'';
   var wm=APP.watermark||{};
   document.getElementById('set-wm-text').value=wm.text||'';
   document.getElementById('set-wm-date').checked=wm.includeDate!==false;
@@ -2312,6 +2404,7 @@ function closeSettings(){
   // Save all settings
   APP.nmKey=document.getElementById('set-nm-key').value.trim()||APP.nmKey;
   APP.claudeKey=document.getElementById('set-claude-key').value.trim()||APP.claudeKey;
+  APP.googleEmbedKey=document.getElementById('set-google-embed-key').value.trim();
   APP.watermark={
     enabled:document.getElementById('set-wm-enabled').checked,
     text:document.getElementById('set-wm-text').value,
@@ -5884,17 +5977,74 @@ function zoomToLocation(){
   },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
 }
 
-function openStreetView(){
-  // Uses Google Maps Street View URL scheme — no API key required
-  var la=_lat,ln=_lng?fixLng(_lat,_lng):null;
-  if(!la||!ln){
-    // Fall back to the map center
+var _svLastCoords=null;
+
+function _currentMapCoords(){
+  var la=_lat,ln=_lng!=null?fixLng(_lat,_lng):null;
+  if(la==null||ln==null){
     if(MAP){var c=MAP.getCenter();la=c.lat;ln=c.lng;}
-    else{alert('No location available');return;}
+    else return null;
   }
+  return [la,ln];
+}
+
+function openStreetView(){
+  var c=_currentMapCoords();
+  if(!c){alert('No location available');return;}
+  _svLastCoords=c;
   var heading=_heading!=null?_heading:0;
-  var url='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+la.toFixed(6)+','+ln.toFixed(6)+'&heading='+Math.round(heading)+'&pitch=0&fov=90';
+  var modal=document.getElementById('streetview-modal');
+  var sub=document.getElementById('sv-subtitle');
+  var frame=document.getElementById('sv-frame');
+  var nokey=document.getElementById('sv-nokey');
+  sub.textContent=c[0].toFixed(5)+', '+c[1].toFixed(5)+(heading?' · '+Math.round(heading)+'°':'');
+  if(APP.googleEmbedKey){
+    // Use the free Maps Embed API (streetview mode) — supports iframe embedding
+    var url='https://www.google.com/maps/embed/v1/streetview?key='+encodeURIComponent(APP.googleEmbedKey)
+      +'&location='+c[0].toFixed(6)+','+c[1].toFixed(6)
+      +'&heading='+Math.round(heading)
+      +'&pitch=0&fov=90';
+    frame.src=url;
+    frame.style.display='block';
+    nokey.style.display='none';
+  }else{
+    frame.src='about:blank';
+    frame.style.display='none';
+    nokey.style.display='flex';
+    // Preload any existing key into the input
+    var inp=document.getElementById('sv-key-input');
+    if(inp)inp.value=APP.googleEmbedKey||'';
+  }
+  modal.classList.add('open');
+}
+
+function closeStreetView(){
+  var modal=document.getElementById('streetview-modal');
+  var frame=document.getElementById('sv-frame');
+  // Unload iframe so it stops network activity
+  frame.src='about:blank';
+  modal.classList.remove('open');
+}
+
+function saveStreetViewKey(){
+  var inp=document.getElementById('sv-key-input');
+  var k=inp?inp.value.trim():'';
+  if(!k){alert('Paste a Google Maps Embed API key first');return;}
+  APP.googleEmbedKey=k;
+  save();
+  // Re-open to show the embed now that we have a key
+  closeStreetView();
+  setTimeout(openStreetView,50);
+}
+
+function openStreetViewExternal(){
+  // Fallback: open in Google Maps (new tab) using the public URL scheme
+  var c=_svLastCoords||_currentMapCoords();
+  if(!c){alert('No location available');return;}
+  var heading=_heading!=null?_heading:0;
+  var url='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+c[0].toFixed(6)+','+c[1].toFixed(6)+'&heading='+Math.round(heading)+'&pitch=0&fov=90';
   window.open(url,'_blank','noopener');
+  closeStreetView();
 }
 
 /* ═══ ROW GEOMETRY CAPTURE (per-row map drawing) ═══ */
