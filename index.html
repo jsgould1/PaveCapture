@@ -519,24 +519,18 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .sec-sub-btn.active{background:var(--bg);color:var(--accent);border-color:var(--accent);}
 .sec-sub-btn.delete{background:var(--bg);color:var(--red);border-color:var(--red);max-width:92px;flex:0 0 auto;}
 
-/* Section map label — centered on section centroid; click to edit / zoom */
-.sec-map-label{
-  background:rgba(15,23,42,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  border:1.5px solid var(--red);border-radius:8px;
-  padding:4px 10px;text-align:center;pointer-events:auto;cursor:pointer;
-  box-shadow:0 2px 6px rgba(0,0,0,.4);
-  max-width:140px;margin:0 auto;
+/* Small Section ID tag pinned at the starting vertex — click to edit */
+.sec-map-tag{
+  display:inline-block;white-space:nowrap;
+  background:rgba(15,23,42,.92);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  border:1px solid var(--red);border-radius:5px;
+  padding:2px 6px;font-size:10px;font-weight:800;color:var(--red);
+  letter-spacing:.03em;line-height:1.1;
+  cursor:pointer;pointer-events:auto;
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+  text-transform:uppercase;
 }
-.sec-map-label:active{background:rgba(15,23,42,1);}
-.sec-map-label .sml-id{
-  font-size:11px;font-weight:900;color:var(--red);
-  text-transform:uppercase;letter-spacing:.04em;line-height:1.1;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.sec-map-label .sml-name{
-  font-size:9px;font-weight:700;color:#f1f5f9;line-height:1.1;margin-top:2px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
+.sec-map-tag:active{background:rgba(239,68,68,.2);}
 .sec-header{
   background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
   border-bottom:1px solid var(--border);flex-shrink:0;
@@ -6713,27 +6707,24 @@ function refreshSectionOverlay(){
         // so clicking the section doesn't also trigger the map's manual-loc tap.
         interactive:true,bubblingMouseEvents:false
       }).addTo(_sectionOverlayLayer);
-      (function(sec){
+      (function(secId){
         poly.on('click',function(e){
           if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);
-          showSectionPopup(sec,e.latlng);
+          openSectionDetail(secId);
         });
-      })(s);
+      })(s.id);
 
-      // Section label at the centroid — Section ID prominent, name below
-      var c=_polyCentroid(s.polygon);
-      var labelHtml='<div class="sec-map-label" data-sec-id="'+esc(s.id)+'">'
-        +'<div class="sml-id">'+esc(s.sectionId||'—')+'</div>'
-        +'<div class="sml-name">'+esc(s.name||'')+'</div>'
-        +'</div>';
-      var labelIcon=L.divIcon({html:labelHtml,className:'',iconSize:[140,34],iconAnchor:[70,17]});
-      var labelMarker=L.marker(c,{icon:labelIcon,interactive:true,keyboard:false,zIndexOffset:500}).addTo(_sectionOverlayLayer);
-      (function(sec,centroidCoord){
-        labelMarker.on('click',function(e){
+      // Small Section ID tag anchored at the starting vertex — tap opens edit.
+      var startPt=s.polygon[0];
+      var tagHtml='<div class="sec-map-tag">'+esc(s.sectionId||'—')+'</div>';
+      var tagIcon=L.divIcon({html:tagHtml,className:'',iconSize:[0,0],iconAnchor:[-4,14]});
+      var tagMarker=L.marker(startPt,{icon:tagIcon,interactive:true,keyboard:false,zIndexOffset:500}).addTo(_sectionOverlayLayer);
+      (function(secId){
+        tagMarker.on('click',function(e){
           if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);
-          showSectionPopup(sec,centroidCoord);
+          openSectionDetail(secId);
         });
-      })(s,c);
+      })(s.id);
     }
     // Row geometries
     SECTION_TIERS.forEach(function(tier){
