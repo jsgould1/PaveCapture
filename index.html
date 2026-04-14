@@ -635,6 +635,8 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 #sec-tier-nav .stn-icon{font-size:22px;line-height:1;}
 #sec-tier-nav .stn-label{font-size:9px;font-weight:700;color:var(--muted);text-align:center;line-height:1.1;}
 #sec-tier-nav .stn-item.active .stn-label{color:var(--accent);}
+#sec-tier-nav .stn-item.done{background:rgba(34,197,94,.12);border-color:var(--green);}
+#sec-tier-nav .stn-item.done .stn-label{color:var(--green);}
 #sec-tier-nav .stn-badge{
   font-size:8px;font-weight:800;color:var(--accent);background:rgba(245,158,11,.15);
   padding:1px 5px;border-radius:6px;min-width:14px;text-align:center;
@@ -1344,7 +1346,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <div class="fm-group">
           <div class="fm-label">Boundary Polygon</div>
           <div id="sec-f-poly-status" style="font-size:11px;color:var(--muted);margin-bottom:6px">No boundary drawn</div>
-          <button onclick="drawSectionBoundary()" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:12px;font-weight:700">✏️ Draw Boundary on Map</button>
+          <div style="display:flex;gap:6px">
+            <button onclick="drawSectionBoundary()" id="sec-f-draw-btn" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:12px;font-weight:700">✏️ Draw Boundary</button>
+            <button onclick="startEditSectionBoundary()" id="sec-f-edit-btn" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:12px;font-weight:700;display:none">✏️ Edit Vertices</button>
+          </div>
         </div>
       </div>
     </div>
@@ -5761,10 +5766,58 @@ function newSectionObject(){
     pciValue:null,pciRange:'',repairType:'',
     crackSealFt:null,notes:'',
     polygon:null,
+    completedTiers:{}, // tier key -> true when user marks it complete
     ts:new Date().toISOString()
   };
   SECTION_TIERS.forEach(function(k){s[k]=[];});
   return s;
+}
+
+// All tier keys that can be "completed" (includes pseudo-tiers 'overview' and 'distress')
+var COMPLETABLE_TIERS=['overview','distress','curbs','sidewalks','pedramps','curbstops',
+  'parking','handicap','striping','stopbars','crosswalks','signs','drainage','edgedrop'];
+
+function isTierComplete(section,tierKey){
+  return !!(section&&section.completedTiers&&section.completedTiers[tierKey]);
+}
+
+function toggleTierComplete(tierKey){
+  if(!_editingSectionId){alert('Save the section first');return;}
+  var s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  if(!s)return;
+  if(!s.completedTiers)s.completedTiers={};
+  // Persist in-flight form state so we don't lose anything
+  SECTION_TIERS.forEach(function(k){s[k]=secCollectRows(k);});
+  s.completedTiers[tierKey]=!s.completedTiers[tierKey];
+  save();
+  // Refresh both header indicators and the nav rail
+  renderTierNav();
+  refreshAllTierCompletionMarks();
+}
+
+function refreshAllTierCompletionMarks(){
+  if(!_editingSectionId)return;
+  var s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  if(!s)return;
+  COMPLETABLE_TIERS.forEach(function(key){
+    var btn=document.getElementById('sec-complete-'+key);
+    var head=document.querySelector('#sec-tier-'+key+' .sec-tier-head');
+    var done=isTierComplete(s,key);
+    if(btn){
+      btn.textContent=done?'✓ Done':'Mark Done';
+      btn.style.background=done?'var(--green)':'var(--bg)';
+      btn.style.color=done?'#000':'var(--green)';
+    }
+    if(head){
+      var icon=head.querySelector('.st-icon');
+      if(icon){
+        // Prepend a checkmark to the icon when complete
+        var baseIcon=icon.getAttribute('data-base')||icon.textContent;
+        if(!icon.getAttribute('data-base'))icon.setAttribute('data-base',baseIcon);
+        icon.innerHTML=(done?'<span style="color:var(--green);margin-right:3px">✓</span>':'')+baseIcon;
+      }
+    }
+  });
 }
 
 function refreshSectionChip(){
@@ -5856,9 +5909,12 @@ function openSectionDetail(id){
     _pendingSectionPoly?(_pendingSectionPoly.length+' vertices drawn'):'No boundary drawn';
   document.getElementById('sec-det-delete').style.display=_editingSectionId?'block':'none';
   document.getElementById('sec-det-setactive').style.display=_editingSectionId?'inline-block':'none';
-  // Zoom-to-bounds button only appears when a boundary exists
+  // Zoom-to-bounds + Edit Vertices buttons only appear when a boundary exists
+  var hasPoly=!!(_pendingSectionPoly&&_pendingSectionPoly.length>=3);
   var zBtn=document.getElementById('sec-det-zoom');
-  if(zBtn)zBtn.style.display=(_pendingSectionPoly&&_pendingSectionPoly.length>=3)?'inline-block':'none';
+  if(zBtn)zBtn.style.display=hasPoly?'inline-block':'none';
+  var editBtn=document.getElementById('sec-f-edit-btn');
+  if(editBtn)editBtn.style.display=hasPoly?'block':'none';
 
   // Populate tier rows
   SECTION_TIERS.forEach(function(k){
@@ -5871,6 +5927,10 @@ function openSectionDetail(id){
 
   // Update top header chip to reflect what we're currently editing
   refreshEditingSectionChip(s);
+
+  // Inject "Mark Done" toggle at the bottom of each tier's body (idempotent)
+  _ensureTierCompleteButtons();
+  refreshAllTierCompletionMarks();
 
   document.getElementById('section-modal').classList.add('open');
   document.getElementById('section-modal').classList.remove('collapsed');
@@ -5958,17 +6018,41 @@ function renderTierNav(){
   var html='';
   TIER_NAV.forEach(function(t){
     var count='';
+    // Derive the tier key used for completion state from the dom id
+    var complKey=t.id.replace('sec-tier-','');
+    var isDone=isTierComplete(curSection,complKey);
     if(t.key&&curSection){
       var n=(curSection[t.key]||[]).length;
       if(n>0)count='<span class="stn-badge">'+n+'</span>';
     }
-    html+='<div class="stn-item" onclick="jumpToTier(\''+t.id+'\')" data-tier-nav="'+t.id+'">'
+    var checkMark=isDone?'<span style="position:absolute;top:2px;right:4px;color:var(--green);font-size:11px;font-weight:900;text-shadow:0 0 3px #000">✓</span>':'';
+    html+='<div class="stn-item'+(isDone?' done':'')+'" style="position:relative" onclick="jumpToTier(\''+t.id+'\')" data-tier-nav="'+t.id+'">'
+      +checkMark
       +'<span class="stn-icon">'+t.icon+'</span>'
       +'<span class="stn-label">'+t.label+'</span>'
       +count
       +'</div>';
   });
   nav.innerHTML=html;
+}
+
+/* Add a "Mark Done" toggle at the bottom of each tier's body.
+   Idempotent — re-inserts only if missing. */
+function _ensureTierCompleteButtons(){
+  COMPLETABLE_TIERS.forEach(function(key){
+    var tier=document.getElementById('sec-tier-'+key);
+    if(!tier)return;
+    var body=tier.querySelector('.st-body');
+    if(!body)return;
+    if(body.querySelector('#sec-complete-'+key))return;
+    var btn=document.createElement('button');
+    btn.id='sec-complete-'+key;
+    btn.type='button';
+    btn.onclick=function(){toggleTierComplete(key);};
+    btn.textContent='Mark Done';
+    btn.style.cssText='width:100%;margin-top:10px;padding:8px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:11px;font-weight:800;cursor:pointer';
+    body.appendChild(btn);
+  });
 }
 
 function jumpToTier(tid){
@@ -6031,10 +6115,11 @@ function secAddRow(tier,data){
   var geomStatus=_geomStatusLabel(d.geometry);
   var gType=defaultGeometryType(tier);
   var html='<button class="inv-del" onclick="var r=this.parentElement;var t=r.dataset.tier;r.remove();secUpdateCount(t);refreshSectionOverlay();">✕</button>'
-    +'<div class="row-geom-bar" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding-right:22px">'
-    +'<button type="button" class="row-map-btn" onclick="captureRowGeometryBtn(this)" style="background:var(--bg);border:1px solid var(--green);color:var(--green);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">📍 Draw '+gType+'</button>'
-    +'<span class="row-geom-status" style="font-size:10px;color:var(--muted);font-weight:600">'+geomStatus+'</span>'
-    +(d.geometry?'<button type="button" onclick="clearRowGeometry(this)" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;margin-left:auto">✕ clear</button>':'')
+    +'<div class="row-geom-bar" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding-right:22px;flex-wrap:wrap">'
+    +'<button type="button" class="row-map-btn" onclick="captureRowGeometryBtn(this)" style="background:var(--bg);border:1px solid var(--green);color:var(--green);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">📍 '+(d.geometry?'Redraw':'Draw')+' '+gType+'</button>'
+    +(d.geometry?'<button type="button" onclick="startEditRowGeom(this)" style="background:var(--bg);border:1px solid var(--accent);color:var(--accent);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">✏️ Edit</button>':'')
+    +'<span class="row-geom-status" style="font-size:10px;color:var(--muted);font-weight:600;flex:1">'+geomStatus+'</span>'
+    +(d.geometry?'<button type="button" onclick="clearRowGeometry(this)" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer">✕ clear</button>':'')
     +'</div>'
     +'<div class="inv-fields">';
   schema.forEach(function(f){
@@ -6270,6 +6355,214 @@ function clearRowGeometry(btn){
   refreshSectionOverlay();
 }
 
+/* ═══ IN-PLACE VERTEX EDITOR ═══
+   Lets users drag, insert, and delete vertices on an existing polygon
+   or polyline. Backed by draggable L.marker handles with a live
+   preview layer. No external plugin — native Leaflet only. */
+
+var _editingGeom=null; // {kind, sectionId, tier, rowId, type, coords, vertMarkers, midMarkers, lineLayer}
+
+function _ensureEditToolbar(){
+  var bar=document.getElementById('geom-edit-toolbar');
+  if(bar)return bar;
+  bar=document.createElement('div');
+  bar.id='geom-edit-toolbar';
+  bar.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:960;background:rgba(15,23,42,.95);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--accent);border-radius:12px;padding:8px 10px;display:none;gap:6px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.5);max-width:92%;flex-wrap:wrap;justify-content:center';
+  bar.innerHTML='<span style="font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap">✏️ <span id="geom-edit-title">Editing</span></span>'
+    +'<span id="geom-edit-hint" style="font-size:9px;color:var(--muted);font-weight:600;width:100%;text-align:center">Drag handles · tap midpoint to add · double-tap handle to remove</span>'
+    +'<button onclick="finishEditGeom(true)" style="background:var(--green);color:#000;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer">✓ Done</button>'
+    +'<button onclick="finishEditGeom(false)" style="background:var(--bg);color:var(--red);border:1px solid var(--red);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">Cancel</button>';
+  document.body.appendChild(bar);
+  return bar;
+}
+
+function _showEditToolbar(title){
+  var bar=_ensureEditToolbar();
+  document.getElementById('geom-edit-title').textContent=title||'Editing';
+  bar.style.display='flex';
+}
+function _hideEditToolbar(){
+  var bar=document.getElementById('geom-edit-toolbar');
+  if(bar)bar.style.display='none';
+}
+
+function startEditRowGeom(btn){
+  if(_editingGeom){alert('Finish the current edit first');return;}
+  var rowEl=btn.closest('.inv-row');
+  if(!rowEl||!rowEl.dataset.geometry)return;
+  var g;
+  try{g=JSON.parse(rowEl.dataset.geometry);}catch(e){return;}
+  if(!g.coords||!g.coords.length)return;
+  var tier=rowEl.dataset.tier;
+  var rowId=rowEl.dataset.rowId;
+  if(!_editingSectionId){alert('Save the section first');return;}
+  // Persist in-progress form state so row is in APP.sections
+  var sec=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  if(!sec){alert('Section not found');return;}
+  SECTION_TIERS.forEach(function(k){sec[k]=secCollectRows(k);});
+  save();
+
+  _editingGeom={
+    kind:'row',
+    sectionId:_editingSectionId,
+    tier:tier,rowId:rowId,
+    type:g.type,
+    coords:g.coords.map(function(c){return c.slice();}),
+    vertMarkers:[],midMarkers:[],lineLayer:null
+  };
+  // Collapse the sheet so map is visible
+  document.getElementById('section-modal').classList.add('collapsed');
+  _showEditToolbar('Editing '+tier+' ('+g.type+')');
+  _renderEditLayer();
+  // Fit map to the feature
+  if(_editingGeom.coords.length>=2){
+    try{MAP.fitBounds(L.latLngBounds(_editingGeom.coords),{padding:[60,60],maxZoom:20});}catch(e){}
+  }else if(_editingGeom.coords.length===1){
+    MAP.setView(_editingGeom.coords[0],19);
+  }
+}
+
+function startEditSectionBoundary(){
+  if(_editingGeom){alert('Finish the current edit first');return;}
+  var poly=_pendingSectionPoly;
+  if(!poly||poly.length<3){alert('No boundary to edit yet — draw one first.');return;}
+  _editingGeom={
+    kind:'boundary',
+    sectionId:_editingSectionId,
+    type:'polygon',
+    coords:poly.map(function(c){return c.slice();}),
+    vertMarkers:[],midMarkers:[],lineLayer:null
+  };
+  document.getElementById('section-modal').classList.add('collapsed');
+  _showEditToolbar('Editing section boundary');
+  _renderEditLayer();
+  try{MAP.fitBounds(L.latLngBounds(_editingGeom.coords),{padding:[60,60],maxZoom:20});}catch(e){}
+}
+
+function _renderEditLayer(){
+  if(!_editingGeom||!MAP)return;
+  // Clear previous markers and line
+  _editingGeom.vertMarkers.forEach(function(m){MAP.removeLayer(m);});
+  _editingGeom.midMarkers.forEach(function(m){MAP.removeLayer(m);});
+  _editingGeom.vertMarkers=[];_editingGeom.midMarkers=[];
+  if(_editingGeom.lineLayer){MAP.removeLayer(_editingGeom.lineLayer);_editingGeom.lineLayer=null;}
+
+  var coords=_editingGeom.coords,type=_editingGeom.type;
+
+  // Preview line/polygon
+  if(type==='line'&&coords.length>=2){
+    _editingGeom.lineLayer=L.polyline(coords,{color:'#f59e0b',weight:4,opacity:.9,dashArray:'6 4'}).addTo(MAP);
+  }else if(type==='polygon'&&coords.length>=3){
+    _editingGeom.lineLayer=L.polygon(coords,{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fillOpacity:.1}).addTo(MAP);
+  }
+
+  // Vertex handles — draggable markers
+  coords.forEach(function(pt,idx){
+    var vertIcon=L.divIcon({
+      html:'<div style="width:18px;height:18px;background:#f59e0b;border:3px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(0,0,0,.6)"></div>',
+      className:'',iconSize:[18,18],iconAnchor:[9,9]
+    });
+    var m=L.marker(pt,{icon:vertIcon,draggable:true,zIndexOffset:1000}).addTo(MAP);
+    m.on('drag',function(e){
+      _editingGeom.coords[idx]=[e.latlng.lat,e.latlng.lng];
+      _updateEditLineOnly();
+    });
+    m.on('dragend',function(){_renderEditLayer();});
+    // Double-click / double-tap to delete (requires leaving at least min vertices)
+    m.on('dblclick',function(){
+      var minPts=(type==='polygon')?3:(type==='line'?2:1);
+      if(_editingGeom.coords.length<=minPts){
+        _editFlashToolbar('Minimum '+minPts+' vertices');
+        return;
+      }
+      _editingGeom.coords.splice(idx,1);
+      _renderEditLayer();
+    });
+    _editingGeom.vertMarkers.push(m);
+  });
+
+  // Midpoint markers — click to insert a new vertex at the midpoint
+  if(type==='line'||type==='polygon'){
+    var limit=(type==='polygon')?coords.length:coords.length-1;
+    for(var i=0;i<limit;i++){
+      var a=coords[i];
+      var b=coords[(i+1)%coords.length];
+      var mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+      var midIcon=L.divIcon({
+        html:'<div style="width:12px;height:12px;background:rgba(245,158,11,.6);border:2px dashed #fff;border-radius:50%"></div>',
+        className:'',iconSize:[12,12],iconAnchor:[6,6]
+      });
+      var mm=L.marker(mid,{icon:midIcon,zIndexOffset:900}).addTo(MAP);
+      (function(insertAfter){
+        mm.on('click',function(e){
+          _editingGeom.coords.splice(insertAfter+1,0,[e.latlng.lat,e.latlng.lng]);
+          _renderEditLayer();
+        });
+      })(i);
+      _editingGeom.midMarkers.push(mm);
+    }
+  }
+}
+
+function _updateEditLineOnly(){
+  if(!_editingGeom||!_editingGeom.lineLayer)return;
+  _editingGeom.lineLayer.setLatLngs(_editingGeom.coords);
+}
+
+function _editFlashToolbar(msg){
+  var t=document.getElementById('geom-edit-hint');
+  if(!t)return;
+  var old=t.textContent;
+  t.textContent=msg;
+  t.style.color='var(--red)';
+  setTimeout(function(){t.textContent=old;t.style.color='var(--muted)';},1500);
+}
+
+function finishEditGeom(commit){
+  if(!_editingGeom)return;
+  var E=_editingGeom;
+  // Clean up overlay markers and line
+  E.vertMarkers.forEach(function(m){MAP.removeLayer(m);});
+  E.midMarkers.forEach(function(m){MAP.removeLayer(m);});
+  if(E.lineLayer)MAP.removeLayer(E.lineLayer);
+  _hideEditToolbar();
+  _editingGeom=null;
+
+  if(commit){
+    if(E.kind==='row'){
+      var sec=APP.sections.find(function(x){return x.id===E.sectionId;});
+      if(sec){
+        var rows=sec[E.tier]||[];
+        var row=rows.find(function(r){return r._rowId===E.rowId;});
+        if(row){
+          row.geometry={type:E.type,coords:E.coords.slice()};
+          if(E.type==='line'){
+            row.length=Math.round(polylineLengthFeet(E.coords));
+          }else if(E.type==='point'&&E.coords[0]){
+            row.lat=(+E.coords[0][0]).toFixed(6);
+            row.lng=(+E.coords[0][1]).toFixed(6);
+          }
+          save();
+          refreshSectionOverlay();
+        }
+      }
+    }else if(E.kind==='boundary'){
+      _pendingSectionPoly=E.coords.slice();
+      var sec2=APP.sections.find(function(x){return x.id===E.sectionId;});
+      if(sec2){
+        sec2.polygon=_pendingSectionPoly.slice();
+        save();
+        refreshSectionOverlay();
+      }
+    }
+  }
+
+  // Re-open the sheet
+  var modal=document.getElementById('section-modal');
+  modal.classList.remove('collapsed');
+  if(E.sectionId&&commit)openSectionDetail(E.sectionId);
+}
+
 function showCaptureToast(msg){
   var t=document.getElementById('capture-toast');
   if(!t){
@@ -6322,21 +6615,24 @@ function _applyCapturedGeometryToRow(verts){
 /* ═══ SECTION OVERLAY — draws row geometries on main map ═══ */
 
 var _sectionOverlayLayer=null;
+// Colors for drawn tier geometries on the main map overlay.
+// Curbs=black, sidewalks=gray, drainage=blue per field-team preference.
 var TIER_COLORS={
-  curbs:'#a855f7',sidewalks:'#3b82f6',pedramps:'#0ea5e9',
+  curbs:'#000000',sidewalks:'#94a3b8',pedramps:'#0ea5e9',
   curbstops:'#64748b',parking:'#22c55e',handicap:'#0891b2',
   striping:'#fbbf24',stopbars:'#dc2626',crosswalks:'#eab308',
-  signs:'#f97316',drainage:'#06b6d4',edgedrop:'#14b8a6'
+  signs:'#f97316',drainage:'#2563eb',edgedrop:'#14b8a6'
 };
+var SECTION_BOUNDARY_COLOR='#ef4444'; // red
 
 function refreshSectionOverlay(){
   if(!MAP)return;
   if(_sectionOverlayLayer){MAP.removeLayer(_sectionOverlayLayer);_sectionOverlayLayer=null;}
   _sectionOverlayLayer=L.layerGroup().addTo(MAP);
   (APP.sections||[]).forEach(function(s){
-    // Section boundary polygon (fill)
+    // Section boundary polygon (fill) — red
     if(s.polygon&&s.polygon.length>=3){
-      L.polygon(s.polygon,{color:'#f59e0b',weight:2,fillColor:'#f59e0b',fillOpacity:.05,dashArray:'6 4'}).addTo(_sectionOverlayLayer);
+      L.polygon(s.polygon,{color:SECTION_BOUNDARY_COLOR,weight:2.5,fillColor:SECTION_BOUNDARY_COLOR,fillOpacity:.06,dashArray:'6 4'}).addTo(_sectionOverlayLayer);
     }
     // Row geometries
     SECTION_TIERS.forEach(function(tier){
@@ -6473,8 +6769,11 @@ var _walkForSection=false;
       // collapsed, so the form fields are preserved as-is.
       var statusEl=document.getElementById('sec-f-poly-status');
       if(statusEl)statusEl.textContent=_pendingSectionPoly?(_pendingSectionPoly.length+' vertices drawn'):'No boundary drawn';
-      var zBtn=document.getElementById('sec-det-zoom');
-      if(zBtn)zBtn.style.display=(_pendingSectionPoly&&_pendingSectionPoly.length>=3)?'inline-block':'none';
+      var hasPoly2=!!(_pendingSectionPoly&&_pendingSectionPoly.length>=3);
+      var zBtn2=document.getElementById('sec-det-zoom');
+      if(zBtn2)zBtn2.style.display=hasPoly2?'inline-block':'none';
+      var editBtn2=document.getElementById('sec-f-edit-btn');
+      if(editBtn2)editBtn2.style.display=hasPoly2?'block':'none';
       // Re-open / un-collapse the sheet
       var modal=document.getElementById('section-modal');
       modal.classList.remove('collapsed');
@@ -6635,6 +6934,8 @@ if(!APP.sections)APP.sections=[];
 if(!('activeSectionId' in APP))APP.activeSectionId=null;
 if(!APP.activePhotoType)APP.activePhotoType='Vicinity';
 if(!APP.photoTypeVisible)APP.photoTypeVisible={};
+// Backfill completedTiers on legacy section records
+APP.sections.forEach(function(s){if(!s.completedTiers)s.completedTiers={};});
 // Request persistent storage so the OS won't evict our IndexedDB under pressure
 if(navigator.storage&&navigator.storage.persist){
   navigator.storage.persisted().then(function(isPersisted){
