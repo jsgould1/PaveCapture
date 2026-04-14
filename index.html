@@ -456,30 +456,56 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 }
 #section-list-modal.open{display:flex;}
 
-/* Section DETAIL is a bottom sheet — hovers over the map, keeping map interactive */
+/* Section DETAIL is a tall sheet — full-height by default with a
+   tap-to-collapse header; hovers over the map when collapsed. */
 #section-modal{
-  display:none;position:fixed;left:0;right:0;bottom:0;z-index:700;
+  display:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:700;
   background:var(--bg);
-  height:65vh;max-height:65vh;min-height:200px;
-  border-top-left-radius:18px;border-top-right-radius:18px;
-  border-top:1px solid var(--accent);
+  border-top-left-radius:0;border-top-right-radius:0;
+  border-top:none;
   box-shadow:0 -12px 32px rgba(0,0,0,.55);
   flex-direction:column;overflow:hidden;
-  transform:translateY(100%);transition:transform .28s ease-out,height .28s ease-out;
+  transform:translateY(100%);transition:transform .28s ease-out;
   pointer-events:none;
 }
 #section-modal.open{display:flex;transform:translateY(0);pointer-events:auto;}
-#section-modal.collapsed{height:56px !important;min-height:56px;}
-#section-modal.expanded{height:92vh !important;max-height:92vh;}
+/* Collapsed: peek just the drag header above the bottom, rest off-screen */
+#section-modal.collapsed{
+  top:auto;bottom:0;height:92px !important;
+  border-top-left-radius:18px;border-top-right-radius:18px;
+  border-top:1px solid var(--accent);
+}
 
 #sec-drag-handle{
-  background:var(--surface);padding:6px 0 2px;text-align:center;cursor:pointer;flex-shrink:0;
-  -webkit-tap-highlight-color:transparent;
+  background:var(--surface);padding:8px 12px;text-align:center;cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:rgba(245,158,11,.2);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  min-height:36px;user-select:none;-webkit-user-select:none;
 }
 #sec-drag-handle .handle-pill{
   display:inline-block;width:42px;height:4px;border-radius:2px;background:var(--muted);opacity:.6;
 }
-#sec-drag-handle:active .handle-pill{opacity:1;}
+#sec-drag-handle .handle-chev{
+  font-size:14px;color:var(--accent);font-weight:900;transition:transform .2s;
+}
+#section-modal.collapsed #sec-drag-handle .handle-chev{transform:rotate(180deg);}
+#sec-drag-handle .handle-label{font-size:11px;color:var(--muted);font-weight:700;}
+#sec-drag-handle:active{background:var(--bg);}
+
+/* Section detail — top action row under the header (Save / Set Active / Delete) */
+.sec-sub-header{
+  display:flex;gap:6px;padding:8px 12px;background:var(--surface);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.sec-sub-btn{
+  flex:1;padding:9px 10px;border-radius:9px;font-size:12px;font-weight:800;
+  cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--text);
+  -webkit-tap-highlight-color:transparent;
+}
+.sec-sub-btn:active{transform:scale(.97);}
+.sec-sub-btn.save{background:var(--accent);color:#000;border-color:var(--accent);}
+.sec-sub-btn.active{background:var(--bg);color:var(--accent);border-color:var(--accent);}
+.sec-sub-btn.delete{background:var(--bg);color:var(--red);border-color:var(--red);max-width:92px;flex:0 0 auto;}
 .sec-header{
   background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
   border-bottom:1px solid var(--border);flex-shrink:0;
@@ -1237,15 +1263,24 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 
 <!-- ═══ SECTION DETAIL MODAL ═══ -->
 <div id="section-modal">
-  <div id="sec-drag-handle" onclick="toggleSectionSheet()" title="Tap to collapse / expand">
+  <div id="sec-drag-handle" role="button" tabindex="0"
+       onclick="toggleSectionSheet()"
+       ontouchend="event.preventDefault();toggleSectionSheet();"
+       title="Tap to collapse / expand">
+    <span class="handle-chev">▼</span>
     <div class="handle-pill"></div>
+    <span class="handle-label" id="handle-label-text">Tap to collapse</span>
   </div>
   <div class="sec-header">
     <button class="close" onclick="closeSectionDetail()" style="font-size:18px">←</button>
     <div class="sec-title" id="sec-det-title">Section</div>
-    <button class="sec-switch-btn" onclick="zoomToSectionBounds()" id="sec-det-zoom" style="display:none">⊙ Zoom</button>
-    <button class="sec-switch-btn" onclick="setActiveFromDetail()" id="sec-det-setactive">Set Active</button>
+    <button class="sec-switch-btn" onclick="zoomToSectionBounds()" id="sec-det-zoom" style="display:none">⊙</button>
     <button class="close" onclick="closeSectionDetail()">✕</button>
+  </div>
+  <div class="sec-sub-header">
+    <button class="sec-sub-btn save" onclick="saveSection()">💾 Save</button>
+    <button class="sec-sub-btn active" onclick="setActiveFromDetail()" id="sec-det-setactive">Set Active</button>
+    <button class="sec-sub-btn delete" onclick="deleteSection()" id="sec-det-delete" style="display:none">🗑 Delete</button>
   </div>
   <div class="sec-body-wrap">
   <!-- Left sticky tier navigation — icons jump to tier, show row counts -->
@@ -1499,10 +1534,6 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button onclick="deleteSection()" id="sec-det-delete" style="flex:1;padding:12px;background:var(--bg);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:700;display:none">🗑 Delete</button>
-      <button onclick="saveSection()" style="flex:2;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800">Save Section</button>
-    </div>
   </div>
   </div><!-- /sec-body-wrap -->
 </div>
@@ -5987,13 +6018,13 @@ function zoomToSectionBounds(){
 function toggleSectionSheet(){
   var el=document.getElementById('section-modal');
   if(!el)return;
+  var lbl=document.getElementById('handle-label-text');
   if(el.classList.contains('collapsed')){
     el.classList.remove('collapsed');
-  }else if(el.classList.contains('expanded')){
-    el.classList.remove('expanded');
+    if(lbl)lbl.textContent='Tap to collapse';
   }else{
-    // Normal → collapsed (peek mode)
     el.classList.add('collapsed');
+    if(lbl)lbl.textContent='Tap to expand';
   }
 }
 
