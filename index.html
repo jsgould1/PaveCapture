@@ -6269,12 +6269,20 @@ function secAddRow(tier,data){
   row.dataset.rowId=d._rowId;
   if(d.geometry)row.dataset.geometry=JSON.stringify(d.geometry);
   var geomStatus=_geomStatusLabel(d.geometry);
-  var gType=defaultGeometryType(tier);
+  var gTypeDefault=defaultGeometryType(tier);
+  // Highlight the tier's preferred geometry type but allow any choice
+  function tBtn(t,label,icon){
+    var primary=(t===gTypeDefault);
+    var border=primary?'var(--green)':'var(--border)';
+    var color=primary?'var(--green)':'var(--muted)';
+    return '<button type="button" class="row-map-btn" data-geom="'+t+'" onclick="captureRowGeometryBtn(this,\''+t+'\')" style="background:var(--bg);border:1px solid '+border+';color:'+color+';font-size:10px;font-weight:700;padding:5px 8px;border-radius:6px">'+icon+' '+label+'</button>';
+  }
+  var drawButtons=tBtn('point','Point','📍')+tBtn('line','Line','📏')+tBtn('polygon','Polygon','⬡');
   var html='<button class="inv-del" onclick="var r=this.parentElement;var t=r.dataset.tier;r.remove();secUpdateCount(t);refreshSectionOverlay();">✕</button>'
-    +'<div class="row-geom-bar" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding-right:22px;flex-wrap:wrap">'
-    +'<button type="button" class="row-map-btn" onclick="captureRowGeometryBtn(this)" style="background:var(--bg);border:1px solid var(--green);color:var(--green);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">📍 '+(d.geometry?'Redraw':'Draw')+' '+gType+'</button>'
-    +(d.geometry?'<button type="button" onclick="startEditRowGeom(this)" style="background:var(--bg);border:1px solid var(--accent);color:var(--accent);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">✏️ Edit</button>':'')
-    +'<span class="row-geom-status" style="font-size:10px;color:var(--muted);font-weight:600;flex:1">'+geomStatus+'</span>'
+    +'<div class="row-geom-bar" style="display:flex;gap:4px;align-items:center;margin-bottom:6px;padding-right:22px;flex-wrap:wrap">'
+    +drawButtons
+    +(d.geometry?'<button type="button" onclick="startEditRowGeom(this)" style="background:var(--bg);border:1px solid var(--accent);color:var(--accent);font-size:10px;font-weight:700;padding:5px 8px;border-radius:6px">✏️ Edit</button>':'')
+    +'<span class="row-geom-status" style="font-size:10px;color:var(--muted);font-weight:600;flex:1 1 100%;margin-top:2px">'+geomStatus+'</span>'
     +(d.geometry?'<button type="button" onclick="clearRowGeometry(this)" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer">✕ clear</button>':'')
     +'</div>'
     +'<div class="inv-fields">';
@@ -6442,12 +6450,14 @@ function defaultGeometryType(tier){
 
 var _rowCaptureTarget=null; // {sectionId, tier, rowId, geomType}
 
-function captureRowGeometryBtn(btn){
+function captureRowGeometryBtn(btn,geomType){
   var rowEl=btn.closest('.inv-row');
   if(!rowEl){alert('Row not found');return;}
   var tier=rowEl.dataset.tier;
   var rowId=rowEl.dataset.rowId;
-  var gType=defaultGeometryType(tier);
+  // User picks the type via the three Point/Line/Polygon buttons; fall
+  // back to the tier's default if called without a type.
+  var gType=geomType||defaultGeometryType(tier);
 
   // Must have a saved section with an ID so we can find the row on return
   if(!_editingSectionId){
@@ -6467,8 +6477,8 @@ function captureRowGeometryBtn(btn){
         openSectionDetail(s.id);
         setTimeout(function(){
           // Try again — row may now exist
-          var newBtn=document.querySelector('#sec-'+tier+'-rows .inv-row[data-row-id="'+rowId+'"] .row-map-btn');
-          if(newBtn)captureRowGeometryBtn(newBtn);
+          var newBtn=document.querySelector('#sec-'+tier+'-rows .inv-row[data-row-id="'+rowId+'"] .row-map-btn[data-geom="'+gType+'"]');
+          if(newBtn)captureRowGeometryBtn(newBtn,gType);
         },100);
       }
     },150);
@@ -6483,8 +6493,8 @@ function captureRowGeometryBtn(btn){
   }
 
   _rowCaptureTarget={sectionId:_editingSectionId,tier:tier,rowId:rowId,geomType:gType};
-  closeSectionDetail();
-  // Brief toast
+  // Collapse the sheet so the map is fully visible during capture
+  document.getElementById('section-modal').classList.add('collapsed');
   var hint=gType==='point'?'Tap the map OR use current GPS. One point.'
     :gType==='polygon'?'Walk the perimeter or tap map vertices, then ✓ Finish.'
     :'Walk the feature or tap map to drop points, then ✓ Finish.';
