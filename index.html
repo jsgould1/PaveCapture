@@ -2806,7 +2806,13 @@ function addMarker(photo){
   if(photo.dir!=null)pop+='<div style="font-size:10px;color:#94a3b8">↑ '+photo.dir.toFixed(0)+'°</div>';
   if(photo.hasAudio)pop+='<div style="font-size:10px;color:#ef4444;margin-top:2px">🎙 Audio memo</div>';
   pop+='</div>';
-  m.bindPopup(pop,{maxWidth:200});
+  // Click opens the photo detail form directly; popup is kept for tap-and-hold preview
+  (function(pid){
+    m.on('click',function(ev){
+      if(ev.originalEvent)L.DomEvent.stopPropagation(ev.originalEvent);
+      openPhotoModal(pid);
+    });
+  })(photo.id);
   _markers[photo.id]=m;
 }
 
@@ -5286,6 +5292,12 @@ function addMarkingMarker(mk){
     +'<button onclick="openMarkingModal(\''+mk.id+'\')" style="flex:1;background:none;border:1px solid #3b82f6;color:#3b82f6;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer">✏️ Edit</button>'
     +'</div></div>';
   m.bindPopup(pop,{maxWidth:200});
+  (function(mid){
+    m.on('click',function(ev){
+      if(ev.originalEvent)L.DomEvent.stopPropagation(ev.originalEvent);
+      openMarkingModal(mid);
+    });
+  })(mk.id);
   _markingMarkers[mk.id]=m;
 }
 
@@ -5916,11 +5928,8 @@ function onSectionSelectChange(sel){
   APP.activeSectionId=id;
   save();
   refreshSectionChip();
-  // Zoom map to the chosen section's boundary if it has one
-  var s=APP.sections.find(function(x){return x.id===id;});
-  if(s&&s.polygon&&s.polygon.length>=2&&MAP){
-    try{MAP.fitBounds(L.latLngBounds(s.polygon),{padding:[40,40],maxZoom:20});}catch(e){}
-  }
+  // Open the section detail panel directly for editing
+  openSectionDetail(id);
 }
 
 // Back-compat shim: old code paths call refreshEditingSectionChip(s) to
@@ -6757,19 +6766,31 @@ function refreshSectionOverlay(){
         });
       })(s.id);
     }
-    // Row geometries
+    // Row geometries — clickable, each jumps into the section detail
+    // with its tier expanded so the user can edit the row's fields.
     SECTION_TIERS.forEach(function(tier){
       var rows=s[tier]||[];
       var color=TIER_COLORS[tier]||'#94a3b8';
       rows.forEach(function(row,idx){
         var g=row.geometry;
         if(!g||!g.coords)return;
+        var layer;
         if(g.type==='point'){
-          L.circleMarker(g.coords,{radius:5,color:color,fillColor:'#fff',fillOpacity:1,weight:2}).addTo(_sectionOverlayLayer);
+          layer=L.circleMarker(g.coords,{radius:6,color:color,fillColor:'#fff',fillOpacity:1,weight:2.5,interactive:true,bubblingMouseEvents:false}).addTo(_sectionOverlayLayer);
         }else if(g.type==='line'){
-          L.polyline(g.coords,{color:color,weight:4,opacity:.85}).addTo(_sectionOverlayLayer);
+          layer=L.polyline(g.coords,{color:color,weight:5,opacity:.9,interactive:true,bubblingMouseEvents:false}).addTo(_sectionOverlayLayer);
         }else if(g.type==='polygon'){
-          L.polygon(g.coords,{color:color,weight:2,fillColor:color,fillOpacity:.15}).addTo(_sectionOverlayLayer);
+          layer=L.polygon(g.coords,{color:color,weight:2.5,fillColor:color,fillOpacity:.18,interactive:true,bubblingMouseEvents:false}).addTo(_sectionOverlayLayer);
+        }
+        if(layer){
+          (function(secId,tierKey){
+            layer.on('click',function(ev){
+              if(ev.originalEvent)L.DomEvent.stopPropagation(ev.originalEvent);
+              openSectionDetail(secId);
+              // Give openSectionDetail a tick to render, then jump to the tier
+              setTimeout(function(){jumpToTier('sec-tier-'+tierKey);},60);
+            });
+          })(s.id,tier);
         }
       });
     });
