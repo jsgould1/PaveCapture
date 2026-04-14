@@ -565,6 +565,57 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   flex:1;padding:8px;background:var(--surface);border:1px solid var(--border);
   border-radius:8px;color:var(--text);font-size:11px;font-weight:700;cursor:pointer;
 }
+
+/* ═══ FLOATING MAP BUTTONS (FABs) ═══ */
+#fab-new-section{
+  position:absolute;top:52px;left:8px;z-index:500;
+  background:var(--accent);color:#000;border:none;border-radius:12px;
+  padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,.4);
+  display:flex;align-items:center;gap:6px;
+}
+#fab-new-section:active{transform:scale(.96);}
+#fab-locate,#fab-streetview{
+  position:absolute;right:8px;z-index:500;
+  width:44px;height:44px;border-radius:22px;border:1px solid var(--border);
+  background:rgba(15,23,42,.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:var(--accent);font-size:20px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(0,0,0,.4);
+}
+#fab-locate{bottom:148px;}
+#fab-streetview{bottom:98px;}
+#fab-locate:active,#fab-streetview:active{background:var(--bg);}
+
+/* Point-capture cursor & feedback */
+#map-area.point-capture-mode #map-el{cursor:crosshair !important;}
+#map-area.point-capture-mode #map-el::after{content:'';}
+
+/* ═══ SECTION DETAIL — LEFT STICKY TIER NAV ═══ */
+#section-modal .sec-body-wrap{display:flex;flex:1;overflow:hidden;}
+#sec-tier-nav{
+  width:64px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 0;
+}
+#sec-tier-nav .stn-item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:9px 4px;margin:3px 4px;border-radius:8px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;border:1px solid transparent;
+  gap:3px;
+}
+#sec-tier-nav .stn-item:active{background:var(--bg);}
+#sec-tier-nav .stn-item.active{background:var(--bg);border-color:var(--accent);}
+#sec-tier-nav .stn-icon{font-size:22px;line-height:1;}
+#sec-tier-nav .stn-label{font-size:9px;font-weight:700;color:var(--muted);text-align:center;line-height:1.1;}
+#sec-tier-nav .stn-item.active .stn-label{color:var(--accent);}
+#sec-tier-nav .stn-badge{
+  font-size:8px;font-weight:800;color:var(--accent);background:rgba(245,158,11,.15);
+  padding:1px 5px;border-radius:6px;min-width:14px;text-align:center;
+}
+#section-modal .sec-body-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;}
+
+/* Adjustment: row geom bar sits on top */
+.inv-row .row-geom-bar button:active{transform:scale(.96);}
 </style>
 </head>
 <body>
@@ -595,6 +646,13 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <!-- MAP -->
   <div id="map-area">
     <div id="map-el"></div>
+
+    <!-- Floating action buttons -->
+    <button id="fab-new-section" onclick="openSectionDetail('new')" title="New Section">
+      <span style="font-size:17px">＋</span> <span>New Section</span>
+    </button>
+    <button id="fab-locate" onclick="zoomToLocation()" title="Zoom to my location">⊕</button>
+    <button id="fab-streetview" onclick="openStreetView()" title="Open Street View at current location">👁</button>
     <div id="gps-bar">
       <div class="gps-pill" id="gps-indicator">
         <div class="gps-dot off" id="gps-dot"></div>
@@ -1068,7 +1126,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     <button class="sec-switch-btn" onclick="setActiveFromDetail()" id="sec-det-setactive">Set Active</button>
     <button class="close" onclick="closeSectionDetail()">✕</button>
   </div>
-  <div class="sec-body" id="sec-det-body">
+  <div class="sec-body-wrap">
+  <!-- Left sticky tier navigation — icons jump to tier, show row counts -->
+  <nav id="sec-tier-nav"></nav>
+  <div class="sec-body-main" id="sec-det-body">
     <!-- Tier: Overview -->
     <div class="sec-tier" id="sec-tier-overview">
       <div class="sec-tier-head" onclick="toggleSecTier('sec-tier-overview')">
@@ -1319,6 +1380,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <button onclick="saveSection()" style="flex:2;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800">Save Section</button>
     </div>
   </div>
+  </div><!-- /sec-body-wrap -->
 </div>
 
 <!-- ═══ SETTINGS MODAL ═══ -->
@@ -1846,7 +1908,8 @@ var MAP=null,_nmLayer=null,_aerialLayer=null,_firstFix=false,_markers={};
 function initMap(){
   if(MAP)return;
   MAP=L.map('map-el',{zoomControl:false,attributionControl:false}).setView([29.7155,-95.2850],16);
-  L.control.zoom({position:'topright'}).addTo(MAP);
+  // Zoom control bottom-right so it doesn't overlap top chrome
+  L.control.zoom({position:'bottomright'}).addTo(MAP);
   _aerialLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20});
   // Always add aerial as base — visible at low zoom where Nearmap has no tiles
   _aerialLayer.addTo(MAP);
@@ -5413,6 +5476,21 @@ if(!APP.watermark)APP.watermark={enabled:true,text:'Manchester Terminal — 1000
 var SECTION_TIERS=['curbs','sidewalks','pedramps','curbstops','parking','handicap',
   'striping','stopbars','crosswalks','signs','drainage','edgedrop'];
 
+// Nav metadata — controls the left-sticky tier rail in the section detail modal.
+// Icon + label + target tier-div id. 'overview' and 'distress' are grouped at the top.
+var TIER_NAV=[
+  {id:'sec-tier-overview',icon:'📌',label:'Info',key:null},
+  {id:'sec-tier-distress',icon:'🧱',label:'Distress',key:null},
+  {id:'sec-tier-curbs',icon:'🟫',label:'Curbs',key:'curbs'},
+  {id:'sec-tier-sidewalks',icon:'🚶',label:'Sidewlk',key:'sidewalks'},
+  {id:'sec-tier-curbstops',icon:'⬛',label:'C.Stop',key:'curbstops'},
+  {id:'sec-tier-parking',icon:'🅿️',label:'Parking',key:'parking'},
+  {id:'sec-tier-striping',icon:'━',label:'Stripe',key:'striping'},
+  {id:'sec-tier-signs',icon:'🪧',label:'Signs',key:'signs'},
+  {id:'sec-tier-drainage',icon:'💧',label:'Drain',key:'drainage'},
+  {id:'sec-tier-edgedrop',icon:'📉',label:'Edge',key:'edgedrop'}
+];
+
 // Field schema for each tier — drives dynamic row rendering
 var SEC_ROW_SCHEMA={
   curbs:[
@@ -5448,7 +5526,7 @@ var SEC_ROW_SCHEMA={
     {k:'count',l:'# Spots',t:'number'},
     {k:'type',l:'Type',t:'select',opts:['Standard','Compact','RV','Bus','Truck','EV','Other']},
     {k:'vehicleSize',l:'Vehicle Size',t:'text'},
-    {k:'lineWidth',l:'Line Width',t:'text'},
+    {k:'lineWidth',l:'Line Width (in)',t:'number'},
     {k:'material',l:'Paint Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
     {k:'color',l:'Color',t:'select',opts:['White','Yellow','Blue','Red','Other']},
     {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
@@ -5457,7 +5535,7 @@ var SEC_ROW_SCHEMA={
   handicap:[
     {k:'count',l:'# HC Spots',t:'number'},
     {k:'type',l:'Type',t:'select',opts:['Standard','Van Accessible','Both']},
-    {k:'size',l:'Size',t:'text'},
+    {k:'size',l:'Size (ft)',t:'text'},
     {k:'marked',l:'Marked?',t:'select',opts:['Yes','No','Partial']},
     {k:'signage',l:'Signage',t:'select',opts:['Present','Missing','Damaged']},
     {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
@@ -5466,7 +5544,7 @@ var SEC_ROW_SCHEMA={
   striping:[
     {k:'location',l:'Location',t:'select',opts:['Centerline','Edge Line','Lane Line','Other']},
     {k:'length',l:'Length (ft)',t:'number'},
-    {k:'width',l:'Width',t:'text'},
+    {k:'width',l:'Width (in)',t:'number'},
     {k:'color',l:'Color',t:'select',opts:['White','Yellow','Other']},
     {k:'material',l:'Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
     {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
@@ -5474,7 +5552,7 @@ var SEC_ROW_SCHEMA={
   ],
   stopbars:[
     {k:'length',l:'Length (ft)',t:'number'},
-    {k:'width',l:'Width',t:'text'},
+    {k:'width',l:'Width (in)',t:'number'},
     {k:'material',l:'Material',t:'select',opts:['Latex','Thermoplastic','Epoxy','Tape','Other']},
     {k:'color',l:'Color',t:'select',opts:['White','Yellow','Other']},
     {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Missing']},
@@ -5500,7 +5578,8 @@ var SEC_ROW_SCHEMA={
   drainage:[
     {k:'feature',l:'Feature',t:'select',opts:['Culvert','Catch Basin','Inlet','Ditch','Head Wall','Pipe','Other']},
     {k:'material',l:'Material',t:'select',opts:['CMP','RCP','HDPE','PVC','Concrete','Stone','Other']},
-    {k:'size',l:'Size / Diameter',t:'text'},
+    {k:'size',l:'Size / Diameter (in)',t:'number'},
+    {k:'length',l:'Length (ft)',t:'number'},
     {k:'condition',l:'Condition',t:'select',opts:['Good','Fair','Poor','Failed']},
     {k:'repair',l:'Repair Needed',t:'select',opts:['None','Clean','Repair','Replace']},
     {k:'notes',l:'Notes',t:'text',full:true}
@@ -5632,6 +5711,7 @@ function openSectionDetail(id){
   });
 
   document.getElementById('section-modal').classList.add('open');
+  renderTierNav();
   // Scroll tiers back to top
   setTimeout(function(){document.getElementById('sec-det-body').scrollTop=0;},20);
 }
@@ -5643,6 +5723,68 @@ function closeSectionDetail(){
 
 function toggleSecTier(tid){
   document.getElementById(tid).classList.toggle('collapsed');
+}
+
+function renderTierNav(){
+  var nav=document.getElementById('sec-tier-nav');
+  if(!nav)return;
+  var curSection=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  var html='';
+  TIER_NAV.forEach(function(t){
+    var count='';
+    if(t.key&&curSection){
+      var n=(curSection[t.key]||[]).length;
+      if(n>0)count='<span class="stn-badge">'+n+'</span>';
+    }
+    html+='<div class="stn-item" onclick="jumpToTier(\''+t.id+'\')" data-tier-nav="'+t.id+'">'
+      +'<span class="stn-icon">'+t.icon+'</span>'
+      +'<span class="stn-label">'+t.label+'</span>'
+      +count
+      +'</div>';
+  });
+  nav.innerHTML=html;
+}
+
+function jumpToTier(tid){
+  var el=document.getElementById(tid);
+  if(!el)return;
+  // Expand the tier
+  el.classList.remove('collapsed');
+  // Highlight the nav item
+  document.querySelectorAll('#sec-tier-nav .stn-item').forEach(function(x){x.classList.remove('active');});
+  var navItem=document.querySelector('#sec-tier-nav .stn-item[data-tier-nav="'+tid+'"]');
+  if(navItem)navItem.classList.add('active');
+  // Scroll into view smoothly within the body main
+  var body=document.getElementById('sec-det-body');
+  if(body){
+    var bodyRect=body.getBoundingClientRect();
+    var elRect=el.getBoundingClientRect();
+    body.scrollTo({top:body.scrollTop+(elRect.top-bodyRect.top)-10,behavior:'smooth'});
+  }
+}
+
+/* Datalist factory — creates a shared <datalist> for each combo field once */
+function ensureDataList(fieldKey,opts){
+  var id='dl-sec-'+fieldKey;
+  var el=document.getElementById(id);
+  if(el)return id;
+  el=document.createElement('datalist');el.id=id;
+  opts.forEach(function(o){
+    var opt=document.createElement('option');opt.value=o;el.appendChild(opt);
+  });
+  document.body.appendChild(el);
+  return id;
+}
+
+function _geomStatusLabel(g){
+  if(!g||!g.coords)return 'Not drawn';
+  if(g.type==='point')return '📍 point';
+  if(g.type==='line'){
+    var ft=Math.round(polylineLengthFeet(g.coords));
+    return '📍 line · '+ft+' ft';
+  }
+  if(g.type==='polygon')return '📍 polygon · '+(g.coords.length)+' pts';
+  return '📍 '+g.type;
 }
 
 function secAddRow(tier,data){
@@ -5657,19 +5799,27 @@ function secAddRow(tier,data){
   var row=document.createElement('div');
   row.className='inv-row';
   row.dataset.tier=tier;
-  var html='<button class="inv-del" onclick="var r=this.parentElement;var t=r.dataset.tier;r.remove();secUpdateCount(t)">✕</button>'
+  if(!d._rowId)d._rowId='r'+Date.now()+Math.random().toString(36).slice(2,5);
+  row.dataset.rowId=d._rowId;
+  if(d.geometry)row.dataset.geometry=JSON.stringify(d.geometry);
+  var geomStatus=_geomStatusLabel(d.geometry);
+  var gType=defaultGeometryType(tier);
+  var html='<button class="inv-del" onclick="var r=this.parentElement;var t=r.dataset.tier;r.remove();secUpdateCount(t);refreshSectionOverlay();">✕</button>'
+    +'<div class="row-geom-bar" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding-right:22px">'
+    +'<button type="button" class="row-map-btn" onclick="captureRowGeometryBtn(this)" style="background:var(--bg);border:1px solid var(--green);color:var(--green);font-size:10px;font-weight:700;padding:5px 9px;border-radius:6px">📍 Draw '+gType+'</button>'
+    +'<span class="row-geom-status" style="font-size:10px;color:var(--muted);font-weight:600">'+geomStatus+'</span>'
+    +(d.geometry?'<button type="button" onclick="clearRowGeometry(this)" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;margin-left:auto">✕ clear</button>':'')
+    +'</div>'
     +'<div class="inv-fields">';
   schema.forEach(function(f){
     var val=d[f.k]!=null?d[f.k]:'';
     html+='<div class="inv-field'+(f.full?' full':'')+'"><label>'+f.l+'</label>';
     if(f.t==='select'){
-      html+='<select class="sf-'+f.k+'"><option value="">—</option>';
-      f.opts.forEach(function(o){
-        html+='<option'+(val===o?' selected':'')+'>'+o+'</option>';
-      });
-      html+='</select>';
+      // Combo: input + datalist so user can pick or type anything
+      var listId=ensureDataList(tier+'-'+f.k,f.opts);
+      html+='<input type="text" class="sf-'+f.k+'" list="'+listId+'" value="'+esc(String(val))+'" placeholder="Pick or type…">';
     }else if(f.t==='number'){
-      html+='<input type="number" class="sf-'+f.k+'" value="'+esc(String(val))+'" min="0">';
+      html+='<input type="number" inputmode="decimal" class="sf-'+f.k+'" value="'+esc(String(val))+'" min="0" step="any">';
     }else{
       html+='<input type="text" class="sf-'+f.k+'" value="'+esc(String(val))+'">';
     }
@@ -5693,6 +5843,10 @@ function secCollectRows(tier){
       if(f.t==='number'&&v!==''){v=Number(v);}
       obj[f.k]=v;
     });
+    if(r.dataset.rowId)obj._rowId=r.dataset.rowId;
+    if(r.dataset.geometry){
+      try{obj.geometry=JSON.parse(r.dataset.geometry);}catch(e){}
+    }
     rows.push(obj);
   });
   return rows;
@@ -5708,6 +5862,216 @@ function secUpdateCount(tier){
 function secEdgedropHere(){
   if(!_lat||!_lng){alert('No GPS fix yet');return;}
   secAddRow('edgedrop');
+}
+
+/* ═══ MAP FLOATING ACTIONS — locate me + Street View ═══ */
+
+function zoomToLocation(){
+  if(_lat&&_lng){
+    MAP.setView([_lat,fixLng(_lat,_lng)],19);
+    return;
+  }
+  // No fix yet — try to force one
+  if(!navigator.geolocation){alert('Geolocation unavailable');return;}
+  showCaptureToast('📍 Getting GPS fix…');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var la=pos.coords.latitude,ln=fixLng(la,pos.coords.longitude);
+    _lat=la;_lng=ln;_acc=pos.coords.accuracy;_geoStatus='on';
+    MAP.setView([la,ln],19);
+    var t=document.getElementById('capture-toast');if(t)t.style.display='none';
+  },function(e){
+    alert('Location error: '+e.message);
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+}
+
+function openStreetView(){
+  // Uses Google Maps Street View URL scheme — no API key required
+  var la=_lat,ln=_lng?fixLng(_lat,_lng):null;
+  if(!la||!ln){
+    // Fall back to the map center
+    if(MAP){var c=MAP.getCenter();la=c.lat;ln=c.lng;}
+    else{alert('No location available');return;}
+  }
+  var heading=_heading!=null?_heading:0;
+  var url='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+la.toFixed(6)+','+ln.toFixed(6)+'&heading='+Math.round(heading)+'&pitch=0&fov=90';
+  window.open(url,'_blank','noopener');
+}
+
+/* ═══ ROW GEOMETRY CAPTURE (per-row map drawing) ═══ */
+
+function polylineLengthFeet(coords){
+  var m=0;
+  for(var i=1;i<coords.length;i++){
+    m+=haversine(coords[i-1][0],coords[i-1][1],coords[i][0],coords[i][1]);
+  }
+  return m*3.281;
+}
+
+function defaultGeometryType(tier){
+  // Point-based features
+  if(['signs','drainage','curbstops','pedramps','handicap'].indexOf(tier)>=0)return 'point';
+  // Polygon-based features (parking lot zones)
+  if(tier==='parking')return 'polygon';
+  // Everything else = linear (curbs, sidewalks, striping, stopbars, crosswalks, edgedrop)
+  return 'line';
+}
+
+var _rowCaptureTarget=null; // {sectionId, tier, rowId, geomType}
+
+function captureRowGeometryBtn(btn){
+  var rowEl=btn.closest('.inv-row');
+  if(!rowEl){alert('Row not found');return;}
+  var tier=rowEl.dataset.tier;
+  var rowId=rowEl.dataset.rowId;
+  var gType=defaultGeometryType(tier);
+
+  // Must have a saved section with an ID so we can find the row on return
+  if(!_editingSectionId){
+    // Auto-save the in-progress section first so we have a stable ID
+    var sid=document.getElementById('sec-f-id').value.trim();
+    var sname=document.getElementById('sec-f-name').value.trim();
+    if(!sid||!sname){
+      alert('Set Section ID and Name and Save Section before drawing on the map.');
+      return;
+    }
+    saveSection();
+    // saveSection() closes the modal and reopens the list; re-open this section
+    setTimeout(function(){
+      var s=APP.sections.find(function(x){return x.sectionId===sid;});
+      if(s){
+        _editingSectionId=s.id;
+        openSectionDetail(s.id);
+        setTimeout(function(){
+          // Try again — row may now exist
+          var newBtn=document.querySelector('#sec-'+tier+'-rows .inv-row[data-row-id="'+rowId+'"] .row-map-btn');
+          if(newBtn)captureRowGeometryBtn(newBtn);
+        },100);
+      }
+    },150);
+    return;
+  }
+
+  // Persist the current form state so rows we just added survive the modal close
+  var s=APP.sections.find(function(x){return x.id===_editingSectionId;});
+  if(s){
+    SECTION_TIERS.forEach(function(k){s[k]=secCollectRows(k);});
+    save();
+  }
+
+  _rowCaptureTarget={sectionId:_editingSectionId,tier:tier,rowId:rowId,geomType:gType};
+  closeSectionDetail();
+  // Brief toast
+  var hint=gType==='point'?'Tap the map OR use current GPS. One point.'
+    :gType==='polygon'?'Walk the perimeter or tap map vertices, then ✓ Finish.'
+    :'Walk the feature or tap map to drop points, then ✓ Finish.';
+  showCaptureToast('📍 Drawing '+gType+' — '+hint);
+
+  if(gType==='point'){
+    // Point mode: single tap on map OR grab current GPS
+    _pointCaptureActive=true;
+    document.getElementById('map-area').classList.add('point-capture-mode');
+  }else{
+    if(typeof toggleWalk==='function')toggleWalk();
+  }
+}
+
+var _pointCaptureActive=false;
+
+function clearRowGeometry(btn){
+  var rowEl=btn.closest('.inv-row');
+  if(!rowEl)return;
+  delete rowEl.dataset.geometry;
+  var status=rowEl.querySelector('.row-geom-status');
+  if(status)status.textContent='Not drawn';
+  btn.style.display='none';
+  refreshSectionOverlay();
+}
+
+function showCaptureToast(msg){
+  var t=document.getElementById('capture-toast');
+  if(!t){
+    t=document.createElement('div');t.id='capture-toast';
+    t.style.cssText='position:fixed;top:58px;left:12px;right:12px;z-index:950;background:rgba(15,23,42,.95);color:var(--accent);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.4)';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.display='block';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){t.style.display='none';},5000);
+}
+
+function _applyCapturedGeometryToRow(verts){
+  if(!_rowCaptureTarget)return false;
+  var ct=_rowCaptureTarget;_rowCaptureTarget=null;
+  var sec=APP.sections.find(function(x){return x.id===ct.sectionId;});
+  if(!sec){return true;}
+  var rows=sec[ct.tier]||[];
+  var row=rows.find(function(r){return r._rowId===ct.rowId;});
+  if(!row){return true;}
+  if(ct.geomType==='point'){
+    var pt=verts&&verts.length?verts[0]:(_lat?[_lat,fixLng(_lat,_lng)]:null);
+    if(pt){
+      row.geometry={type:'point',coords:pt};
+      row.lat=(+pt[0]).toFixed(6);
+      row.lng=(+pt[1]).toFixed(6);
+    }
+  }else if(ct.geomType==='line'){
+    if(verts&&verts.length>=2){
+      row.geometry={type:'line',coords:verts.slice()};
+      // Auto-populate length field if it exists
+      var ft=Math.round(polylineLengthFeet(verts));
+      if('length' in row||SEC_ROW_SCHEMA[ct.tier].some(function(f){return f.k==='length';})){
+        row.length=ft;
+      }
+    }
+  }else if(ct.geomType==='polygon'){
+    if(verts&&verts.length>=3){
+      row.geometry={type:'polygon',coords:verts.slice()};
+    }
+  }
+  save();
+  // Reopen section and refresh
+  _editingSectionId=sec.id;
+  setTimeout(function(){openSectionDetail(sec.id);refreshSectionOverlay();},150);
+  return true;
+}
+
+/* ═══ SECTION OVERLAY — draws row geometries on main map ═══ */
+
+var _sectionOverlayLayer=null;
+var TIER_COLORS={
+  curbs:'#a855f7',sidewalks:'#3b82f6',pedramps:'#0ea5e9',
+  curbstops:'#64748b',parking:'#22c55e',handicap:'#0891b2',
+  striping:'#fbbf24',stopbars:'#dc2626',crosswalks:'#eab308',
+  signs:'#f97316',drainage:'#06b6d4',edgedrop:'#14b8a6'
+};
+
+function refreshSectionOverlay(){
+  if(!MAP)return;
+  if(_sectionOverlayLayer){MAP.removeLayer(_sectionOverlayLayer);_sectionOverlayLayer=null;}
+  _sectionOverlayLayer=L.layerGroup().addTo(MAP);
+  (APP.sections||[]).forEach(function(s){
+    // Section boundary polygon (fill)
+    if(s.polygon&&s.polygon.length>=3){
+      L.polygon(s.polygon,{color:'#f59e0b',weight:2,fillColor:'#f59e0b',fillOpacity:.05,dashArray:'6 4'}).addTo(_sectionOverlayLayer);
+    }
+    // Row geometries
+    SECTION_TIERS.forEach(function(tier){
+      var rows=s[tier]||[];
+      var color=TIER_COLORS[tier]||'#94a3b8';
+      rows.forEach(function(row,idx){
+        var g=row.geometry;
+        if(!g||!g.coords)return;
+        if(g.type==='point'){
+          L.circleMarker(g.coords,{radius:5,color:color,fillColor:'#fff',fillOpacity:1,weight:2}).addTo(_sectionOverlayLayer);
+        }else if(g.type==='line'){
+          L.polyline(g.coords,{color:color,weight:4,opacity:.85}).addTo(_sectionOverlayLayer);
+        }else if(g.type==='polygon'){
+          L.polygon(g.coords,{color:color,weight:2,fillColor:color,fillOpacity:.15}).addTo(_sectionOverlayLayer);
+        }
+      });
+    });
+  });
 }
 
 function saveSection(){
@@ -5749,6 +6113,7 @@ function saveSection(){
 
   save();
   refreshSectionChip();
+  refreshSectionOverlay();
   closeSectionDetail();
   openSectionList();
 }
@@ -5801,22 +6166,47 @@ var _walkForSection=false;
       if(_walkVerts&&_walkVerts.length>=3){
         _pendingSectionPoly=_walkVerts.slice();
       }
-      // Clean walk state without opening repair modal
-      if(_walkLine)MAP.removeLayer(_walkLine);
-      _walkDots.forEach(function(d){MAP.removeLayer(d);});
-      _walkVerts=[];_walkDots=[];_walkLine=null;_walking=false;
-      clearInterval(_walkInterval);clearInterval(_walkTimerInterval);
-      var btn=document.getElementById('btn-walk');btn.classList.remove('walking');
-      document.getElementById('walk-icon').textContent='🚶';
-      document.getElementById('walk-label').textContent='Walk Area';
-      document.getElementById('walk-bar').classList.remove('active');
-      // Re-open section detail
+      _cleanupWalkState();
       openSectionDetail(_editingSectionId||'new');
+      return;
+    }
+    if(_rowCaptureTarget){
+      // Row geometry capture — stash the captured vertices, clean walk, apply
+      var verts=_walkVerts.slice();
+      _cleanupWalkState();
+      _applyCapturedGeometryToRow(verts);
       return;
     }
     return origFinish.apply(this,arguments);
   };
 })();
+
+function _cleanupWalkState(){
+  if(_walkLine&&MAP)MAP.removeLayer(_walkLine);
+  (_walkDots||[]).forEach(function(d){if(MAP)MAP.removeLayer(d);});
+  _walkVerts=[];_walkDots=[];_walkLine=null;_walking=false;
+  if(_walkInterval)clearInterval(_walkInterval);
+  if(_walkTimerInterval)clearInterval(_walkTimerInterval);
+  var btn=document.getElementById('btn-walk');
+  if(btn)btn.classList.remove('walking');
+  var ic=document.getElementById('walk-icon');if(ic)ic.textContent='🚶';
+  var lb=document.getElementById('walk-label');if(lb)lb.textContent='Walk Area';
+  var wb=document.getElementById('walk-bar');if(wb)wb.classList.remove('active');
+}
+
+/* Map tap handler for single-point capture mode.
+   Installed after MAP is ready — see bootstrap block at bottom. */
+function _installPointCaptureHandler(){
+  if(!MAP||MAP._pointCapInstalled)return;
+  MAP._pointCapInstalled=true;
+  MAP.on('click',function(e){
+    if(!_pointCaptureActive||!_rowCaptureTarget)return;
+    _pointCaptureActive=false;
+    document.getElementById('map-area').classList.remove('point-capture-mode');
+    var toast=document.getElementById('capture-toast');if(toast)toast.style.display='none';
+    _applyCapturedGeometryToRow([[e.latlng.lat,e.latlng.lng]]);
+  });
+}
 
 function quickCapturePhoto(type){
   if(type)setActivePhotoType(type);
@@ -5929,6 +6319,8 @@ if(APP.nmKey||APP.claudeKey){
   checkCorelogKey();
 }
 initMap();
+// Install the single-point capture click handler as soon as MAP exists
+setTimeout(function(){_installPointCaptureHandler();refreshSectionOverlay();},500);
 startGPS();
 // Restore zones from IDB then redraw overlay
 loadZonesAsync().then(function(){
@@ -5936,7 +6328,7 @@ loadZonesAsync().then(function(){
   refreshSiteLocations();
 }).catch(function(){refreshSiteLocations();});
 // Restore full app data from IDB (overrides localStorage if more complete)
-loadFromIDB().catch(function(){});
+loadFromIDB().then(function(){refreshSectionOverlay();}).catch(function(){});
 // Restore audio blob references from IndexedDB (async, non-blocking)
 restoreAudioRefs().then(function(){
   rebuildMarkers();
