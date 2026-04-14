@@ -22,15 +22,25 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* ═══ LAYOUT ═══ */
 #app{display:flex;flex-direction:column;height:100%;height:100dvh;}
 #top-bar{
-  background:var(--surface);padding:6px 12px;display:flex;align-items:center;gap:8px;
+  background:var(--surface);padding:6px 10px;display:flex;align-items:center;gap:6px;
   border-bottom:1px solid var(--border);flex-shrink:0;padding-top:max(6px,env(safe-area-inset-top));
+  flex-wrap:wrap;row-gap:6px;
 }
-#top-bar .brand{font-weight:800;font-size:16px;letter-spacing:.06em;color:var(--accent);}
-#top-bar .brand span{color:var(--text);font-weight:400;font-size:12px;margin-left:6px;}
-.top-spacer{flex:1;}
+#top-bar .brand{font-weight:800;font-size:15px;letter-spacing:.04em;color:var(--accent);flex-shrink:0;}
+#top-bar .brand span{color:var(--text);font-weight:400;font-size:11px;margin-left:4px;}
+@media (max-width:480px){
+  /* On narrow phones, compress the brand to save room for the section chip */
+  #top-bar .brand{font-size:13px;}
+  #top-bar .brand span{display:none;}
+}
+.top-spacer{flex:1 1 auto;min-width:0;}
+.top-btn-group{
+  display:flex;gap:4px;align-items:center;margin-left:auto;flex-shrink:0;flex-wrap:wrap;
+  justify-content:flex-end;
+}
 .top-btn{
   background:var(--bg);border:1px solid var(--border);color:var(--muted);
-  padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;
+  padding:5px 9px;border-radius:8px;font-size:11px;font-weight:600;flex-shrink:0;
 }
 .top-btn:active{background:var(--border);}
 
@@ -439,7 +449,8 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 
 /* ═══ SECTIONS (pavement preservation scoping) ═══ */
 #sec-chip{
-  display:inline-flex;align-items:center;gap:6px;max-width:58%;
+  display:inline-flex;align-items:center;gap:6px;
+  flex:1 1 auto;min-width:0;max-width:100%;
   background:var(--bg);border:1px solid var(--accent);color:var(--accent);
   padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;
   cursor:pointer;overflow:hidden;
@@ -506,12 +517,31 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .sec-sub-btn.save{background:var(--accent);color:#000;border-color:var(--accent);}
 .sec-sub-btn.active{background:var(--bg);color:var(--accent);border-color:var(--accent);}
 .sec-sub-btn.delete{background:var(--bg);color:var(--red);border-color:var(--red);max-width:92px;flex:0 0 auto;}
+
+/* Section map label — centered on section centroid; click to edit / zoom */
+.sec-map-label{
+  background:rgba(15,23,42,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border:1.5px solid var(--red);border-radius:8px;
+  padding:4px 10px;text-align:center;pointer-events:auto;cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.4);
+  max-width:140px;margin:0 auto;
+}
+.sec-map-label:active{background:rgba(15,23,42,1);}
+.sec-map-label .sml-id{
+  font-size:11px;font-weight:900;color:var(--red);
+  text-transform:uppercase;letter-spacing:.04em;line-height:1.1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sec-map-label .sml-name{
+  font-size:9px;font-weight:700;color:#f1f5f9;line-height:1.1;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 .sec-header{
   background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
   border-bottom:1px solid var(--border);flex-shrink:0;
   padding-top:max(10px,env(safe-area-inset-top));
 }
-.sec-header .sec-title{font-weight:700;font-size:14px;flex:1;}
+.sec-header .sec-title{font-weight:700;font-size:14px;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sec-header button.close{background:none;border:none;color:var(--muted);font-size:22px;padding:4px 8px;cursor:pointer;}
 .sec-body{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch;}
 
@@ -760,13 +790,14 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <span class="sc-id" id="sec-chip-id">—</span>
       <span class="sc-name" id="sec-chip-name">No section</span>
     </button>
-    <div class="top-spacer"></div>
-    <span id="save-indicator" style="font-size:10px;font-weight:700;color:var(--muted);padding:0 6px"></span>
-    <button class="top-btn" id="btn-sections" onclick="openSectionList()" title="Sections">📋</button>
-    <button class="top-btn" id="btn-zones" onclick="zoneMenu()" title="Site zones">🗺</button>
-    <button class="top-btn" onclick="openSettings()">⚙️</button>
-    <button class="top-btn" onclick="openGallery()">🗂</button>
-    <button class="top-btn" onclick="exportData()">📤</button>
+    <div class="top-btn-group">
+      <span id="save-indicator" style="font-size:10px;font-weight:700;color:var(--muted);padding:0 4px"></span>
+      <button class="top-btn" id="btn-sections" onclick="openSectionList()" title="Sections">📋</button>
+      <button class="top-btn" id="btn-zones" onclick="zoneMenu()" title="Site zones">🗺</button>
+      <button class="top-btn" onclick="openSettings()">⚙️</button>
+      <button class="top-btn" onclick="openGallery()">🗂</button>
+      <button class="top-btn" onclick="exportData()">📤</button>
+    </div>
   </div>
 
   <!-- MAP -->
@@ -6656,14 +6687,48 @@ var TIER_COLORS={
 };
 var SECTION_BOUNDARY_COLOR='#ef4444'; // red
 
+function _polyCentroid(coords){
+  // Simple average centroid — good enough for label placement
+  var lat=0,lng=0,n=coords.length;
+  for(var i=0;i<n;i++){lat+=coords[i][0];lng+=coords[i][1];}
+  return [lat/n,lng/n];
+}
+
 function refreshSectionOverlay(){
   if(!MAP)return;
   if(_sectionOverlayLayer){MAP.removeLayer(_sectionOverlayLayer);_sectionOverlayLayer=null;}
   _sectionOverlayLayer=L.layerGroup().addTo(MAP);
   (APP.sections||[]).forEach(function(s){
-    // Section boundary polygon (fill) — red
+    // Section boundary polygon (fill) — red, clickable
     if(s.polygon&&s.polygon.length>=3){
-      L.polygon(s.polygon,{color:SECTION_BOUNDARY_COLOR,weight:2.5,fillColor:SECTION_BOUNDARY_COLOR,fillOpacity:.06,dashArray:'6 4'}).addTo(_sectionOverlayLayer);
+      var poly=L.polygon(s.polygon,{
+        color:SECTION_BOUNDARY_COLOR,weight:2.5,
+        fillColor:SECTION_BOUNDARY_COLOR,fillOpacity:.06,dashArray:'6 4',
+        // `interactive:true` enables click events; `bubblingMouseEvents:false`
+        // so clicking the section doesn't also trigger the map's manual-loc tap.
+        interactive:true,bubblingMouseEvents:false
+      }).addTo(_sectionOverlayLayer);
+      (function(sec){
+        poly.on('click',function(e){
+          if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);
+          showSectionPopup(sec,e.latlng);
+        });
+      })(s);
+
+      // Section label at the centroid — Section ID prominent, name below
+      var c=_polyCentroid(s.polygon);
+      var labelHtml='<div class="sec-map-label" data-sec-id="'+esc(s.id)+'">'
+        +'<div class="sml-id">'+esc(s.sectionId||'—')+'</div>'
+        +'<div class="sml-name">'+esc(s.name||'')+'</div>'
+        +'</div>';
+      var labelIcon=L.divIcon({html:labelHtml,className:'',iconSize:[140,34],iconAnchor:[70,17]});
+      var labelMarker=L.marker(c,{icon:labelIcon,interactive:true,keyboard:false,zIndexOffset:500}).addTo(_sectionOverlayLayer);
+      (function(sec,centroidCoord){
+        labelMarker.on('click',function(e){
+          if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);
+          showSectionPopup(sec,centroidCoord);
+        });
+      })(s,c);
     }
     // Row geometries
     SECTION_TIERS.forEach(function(tier){
@@ -6682,6 +6747,42 @@ function refreshSectionOverlay(){
       });
     });
   });
+}
+
+function showSectionPopup(s,latlng){
+  if(!MAP)return;
+  var photos=APP.photos.filter(function(p){return p.sectionId===s.id;}).length;
+  var rowTot=0;SECTION_TIERS.forEach(function(k){rowTot+=(s[k]||[]).length;});
+  var doneCount=0;Object.keys(s.completedTiers||{}).forEach(function(k){if(s.completedTiers[k])doneCount++;});
+  var html='<div style="min-width:170px">'
+    +'<div style="font-size:11px;color:#f59e0b;font-weight:800">'+esc(s.sectionId||'—')+'</div>'
+    +'<div style="font-size:13px;color:#f1f5f9;font-weight:700;margin-top:2px">'+esc(s.name||'')+'</div>'
+    +'<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5">'
+      +(s.type?esc(s.type)+' · ':'')+(s.areaSF?Number(s.areaSF).toLocaleString()+' SF':'')
+      +'<br>📷 '+photos+' · 📋 '+rowTot+' rows'+(doneCount?' · ✓ '+doneCount:'')
+    +'</div>'
+    +'<div style="display:flex;gap:4px;margin-top:8px">'
+      +'<button onclick="closeSectionPopupAnd(\''+s.id+'\',true)" style="flex:1;padding:6px;background:#f59e0b;color:#000;border:none;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">✏️ Edit</button>'
+      +'<button onclick="closeSectionPopupAnd(\''+s.id+'\',false)" style="flex:1;padding:6px;background:#1e293b;color:#f59e0b;border:1px solid #f59e0b;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">⊙ Zoom</button>'
+    +'</div>'
+    +'</div>';
+  L.popup({maxWidth:220,closeButton:true,className:'sec-map-popup'})
+    .setLatLng(latlng)
+    .setContent(html)
+    .openOn(MAP);
+}
+
+function closeSectionPopupAnd(sectionId,edit){
+  MAP.closePopup();
+  if(edit){
+    openSectionDetail(sectionId);
+  }else{
+    // Zoom to the section
+    var s=APP.sections.find(function(x){return x.id===sectionId;});
+    if(s&&s.polygon&&s.polygon.length>=2){
+      try{MAP.fitBounds(L.latLngBounds(s.polygon),{padding:[40,40],maxZoom:20});}catch(e){}
+    }
+  }
 }
 
 function saveSection(){
