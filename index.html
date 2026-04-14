@@ -243,6 +243,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .gal-card .info .meta{font-size:10px;color:var(--muted);margin-top:2px;}
 .gal-card .info .tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
 .gal-card .info .tag{font-size:9px;padding:1px 6px;border-radius:6px;font-weight:700;}
+.gal-card.selected{outline:3px solid var(--accent);outline-offset:-3px;}
+.gal-card .sel-check{
+  position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;border:1.5px solid #fff;z-index:2;pointer-events:none;
+}
+.gal-card.selected .sel-check{background:var(--accent);color:#000;}
+#gallery-modal.selecting #gal-bulk-bar{display:flex;}
+.gal-card .pt-badge{
+  position:absolute;bottom:126px;left:6px;background:rgba(0,0,0,.7);color:#fff;
+  font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.3);
+}
+.gal-card .sec-badge{
+  position:absolute;bottom:126px;right:6px;background:rgba(245,158,11,.85);color:#000;
+  font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;
+}
 
 /* ═══ iOS FIXES ═══ */
 select,input,textarea{font-size:16px !important;}
@@ -497,6 +513,58 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 }
 .sec-active-banner .sab-id{background:var(--accent);color:#000;padding:3px 9px;border-radius:6px;font-weight:800;font-size:11px;}
 .sec-active-banner .sab-name{flex:1;color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ═══ PHOTO TYPE PILL + LAYERS PANEL ═══ */
+#photo-type-pill{
+  background:rgba(15,23,42,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:20px;padding:4px 10px;
+  font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;
+  cursor:pointer;
+}
+#photo-type-pill .ptp-label{color:var(--muted);font-weight:600;}
+#photo-type-pill .ptp-name{color:var(--accent);}
+
+#photo-layers-modal{
+  display:none;position:fixed;top:56px;left:8px;right:8px;z-index:920;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:420px;margin:0 auto;
+  max-height:calc(100vh - 100px);overflow:hidden;flex-direction:column;
+}
+#photo-layers-modal.open{display:flex;}
+.pl-head{
+  background:var(--bg);padding:12px 14px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);
+}
+.pl-head .pl-title{font-weight:800;font-size:13px;flex:1;}
+.pl-head button.close{background:none;border:none;color:var(--muted);font-size:20px;padding:2px 8px;cursor:pointer;}
+.pl-body{overflow-y:auto;padding:10px 12px;-webkit-overflow-scrolling:touch;}
+.pl-section-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 6px;}
+.pl-section-title:first-child{margin-top:0;}
+.pl-row{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:5px;
+  background:var(--bg);border:1px solid var(--border);border-radius:9px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.pl-row.active{border-color:var(--accent);background:rgba(245,158,11,.08);}
+.pl-row .pl-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0;}
+.pl-row .pl-name{flex:1;font-size:12px;font-weight:700;color:var(--text);}
+.pl-row .pl-count{font-size:10px;color:var(--muted);font-weight:700;background:var(--surface);padding:2px 8px;border-radius:10px;}
+.pl-row .pl-eye{font-size:14px;color:var(--green);width:22px;text-align:center;flex-shrink:0;}
+.pl-row.hidden .pl-eye{color:var(--border);}
+.pl-row.hidden .pl-name{color:var(--muted);}
+.pl-row .pl-set-active{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;cursor:pointer;
+}
+.pl-row.active .pl-set-active{background:var(--accent);color:#000;border-color:var(--accent);}
+.pl-footer{
+  display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--border);
+  background:var(--bg);
+}
+.pl-footer button{
+  flex:1;padding:8px;background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:11px;font-weight:700;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -516,6 +584,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <span class="sc-name" id="sec-chip-name">No section</span>
     </button>
     <div class="top-spacer"></div>
+    <span id="save-indicator" style="font-size:10px;font-weight:700;color:var(--muted);padding:0 6px"></span>
     <button class="top-btn" id="btn-sections" onclick="openSectionList()" title="Sections">📋</button>
     <button class="top-btn" id="btn-zones" onclick="zoneMenu()" title="Site zones">🗺</button>
     <button class="top-btn" onclick="openSettings()">⚙️</button>
@@ -536,6 +605,9 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <span id="heading-text">—°</span>
       </div>
       <div id="photo-count-pill">📷 <span id="photo-count">0</span> 🛣️ <span id="marking-count">0</span> 📝 <span id="notes-count-pill">0</span></div>
+      <button id="photo-type-pill" onclick="openPhotoLayers()" title="Photo type &amp; layers">
+        <span class="ptp-label">Type:</span> <span class="ptp-name" id="photo-type-pill-name">Vicinity</span> ▾
+      </button>
       <button class="fit-btn" onclick="fitAllMarkers()">⊙ Fit All</button>
       <div id="nm-pill" class="gps-pill" style="display:none;color:#f59e0b">📸 <span id="nm-pill-text">Nearmap</span></div>
     </div>
@@ -621,6 +693,18 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     <div id="pm-thumb-wrap"><span style="color:var(--muted)">📷</span></div>
 
     <div class="pm-gps-bar" id="pm-gps-tags"></div>
+
+    <!-- Photo Type -->
+    <div class="fm-group">
+      <div class="fm-label">📷 Photo Type</div>
+      <select class="fm-select" id="pm-photo-type"></select>
+    </div>
+
+    <!-- Section Assignment -->
+    <div class="fm-group">
+      <div class="fm-label">📋 Section</div>
+      <select class="fm-select" id="pm-section"></select>
+    </div>
 
     <!-- Description -->
     <div class="fm-group">
@@ -716,9 +800,21 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <div id="gal-header">
     <div class="title">Photo Gallery</div>
     <span style="font-size:11px;color:var(--muted)" id="gal-count">0 photos</span>
+    <button id="gal-filter-btn" onclick="cycleGalleryFilter()" style="background:var(--bg);color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">All Types</button>
+    <button id="gal-select-btn" onclick="toggleGallerySelect()" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">☐ Select</button>
     <button onclick="closeGallery();setTimeout(openMarkingList,100)" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">🛣️ Markings</button>
     <div style="flex:1"></div>
     <button id="gal-close" onclick="closeGallery()">✕</button>
+  </div>
+  <div id="gal-bulk-bar" style="display:none;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 12px;gap:8px;align-items:center;flex-wrap:wrap">
+    <span id="gal-bulk-count" style="font-size:11px;font-weight:700;color:var(--accent)">0 selected</span>
+    <button onclick="gallerySelectAll()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700">All</button>
+    <button onclick="gallerySelectNone()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700">None</button>
+    <div style="flex:1"></div>
+    <select id="gal-bulk-type" class="fm-select" style="padding:5px 8px;font-size:11px;max-width:130px"></select>
+    <button onclick="bulkAssignType()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800">Set Type</button>
+    <select id="gal-bulk-section" class="fm-select" style="padding:5px 8px;font-size:11px;max-width:160px"></select>
+    <button onclick="bulkAssignSection()" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800">Set Section</button>
   </div>
   <div id="gal-body">
     <div class="gal-grid" id="gal-grid"></div>
@@ -933,6 +1029,24 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   </div>
 </div>
 
+<!-- ═══ PHOTO TYPE / LAYERS MODAL ═══ -->
+<div id="photo-layers-modal">
+  <div class="pl-head">
+    <div class="pl-title">📷 Photo Type &amp; Layers</div>
+    <button class="close" onclick="closePhotoLayers()">✕</button>
+  </div>
+  <div class="pl-body">
+    <div class="pl-section-title">Active Capture Type</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">New photos will be stamped with this type. Tap <b>Set</b> on any row to change.</div>
+    <div class="pl-section-title">Types &amp; Visibility</div>
+    <div id="pl-rows"></div>
+  </div>
+  <div class="pl-footer">
+    <button onclick="showAllPhotoTypes()">👁 Show All</button>
+    <button onclick="hideAllPhotoTypes()">◯ Hide All</button>
+  </div>
+</div>
+
 <!-- ═══ SECTION LIST MODAL ═══ -->
 <div id="section-list-modal">
   <div class="sec-header">
@@ -1064,7 +1178,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <div class="st-body">
         <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">Linked photos, AI-tagged distress, and repair area polygons captured while this section is active.</p>
         <div id="sec-distress-list" style="margin-bottom:8px"></div>
-        <button onclick="quickCapturePhoto()" style="width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:800;margin-bottom:6px">📷 Capture Distress Photo</button>
+        <button onclick="quickCapturePhoto('Distress')" style="width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:800;margin-bottom:6px">📷 Capture Distress Photo</button>
         <button onclick="quickWalkArea()" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--green);color:var(--green);border-radius:8px;font-size:12px;font-weight:700">🚶 Walk Repair Area Polygon</button>
       </div>
     </div>
@@ -1078,6 +1192,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <div class="st-body">
         <div id="sec-curbs-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('curbs')">+ Add Curb Segment</button>
+        <button onclick="quickCapturePhoto('Curb')" style="width:100%;margin-top:6px;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Capture Curb Photo</button>
       </div>
     </div>
 
@@ -1094,6 +1209,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Pedestrian Ramps</div>
         <div id="sec-pedramps-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('pedramps')">+ Add Ped Ramp</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="quickCapturePhoto('Sidewalk')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Sidewalk</button>
+          <button onclick="quickCapturePhoto('Ped Ramp')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Ped Ramp</button>
+        </div>
       </div>
     </div>
 
@@ -1106,6 +1225,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <div class="st-body">
         <div id="sec-curbstops-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('curbstops')">+ Add Curb Stop Group</button>
+        <button onclick="quickCapturePhoto('Curb Stop')" style="width:100%;margin-top:6px;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Capture Curb Stop Photo</button>
       </div>
     </div>
 
@@ -1122,6 +1242,10 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Handicap Parking</div>
         <div id="sec-handicap-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('handicap')">+ Add Handicap Row</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="quickCapturePhoto('Parking')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Parking</button>
+          <button onclick="quickCapturePhoto('Handicap')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Handicap</button>
+        </div>
       </div>
     </div>
 
@@ -1141,6 +1265,11 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <div style="font-size:10px;color:var(--muted);margin:10px 0 4px;font-weight:700;text-transform:uppercase">Crosswalks</div>
         <div id="sec-crosswalks-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('crosswalks')">+ Add Crosswalk</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="quickCapturePhoto('Striping')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Striping</button>
+          <button onclick="quickCapturePhoto('Stop Bar')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Stop Bar</button>
+          <button onclick="quickCapturePhoto('Crosswalk')" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Xwalk</button>
+        </div>
       </div>
     </div>
 
@@ -1153,6 +1282,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <div class="st-body">
         <div id="sec-signs-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('signs')">+ Add Sign</button>
+        <button onclick="quickCapturePhoto('Sign')" style="width:100%;margin-top:6px;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Capture Sign Photo</button>
       </div>
     </div>
 
@@ -1165,6 +1295,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       <div class="st-body">
         <div id="sec-drainage-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('drainage')">+ Add Drainage Feature</button>
+        <button onclick="quickCapturePhoto('Drainage')" style="width:100%;margin-top:6px;padding:8px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Capture Drainage Photo</button>
       </div>
     </div>
 
@@ -1179,6 +1310,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
         <div id="sec-edgedrop-rows"></div>
         <button class="inv-add-btn" onclick="secAddRow('edgedrop')">+ Add Drop-Off Reading</button>
         <button onclick="secEdgedropHere()" style="width:100%;padding:8px;margin-top:6px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:11px;font-weight:700">📍 Add at Current GPS</button>
+        <button onclick="quickCapturePhoto('Edge Drop')" style="width:100%;padding:8px;margin-top:6px;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:11px;font-weight:700">📷 Capture Edge Drop Photo</button>
       </div>
     </div>
 
@@ -1246,7 +1378,9 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
       </div>
     </div>
     <div class="settings-section">
-      <h3>💾 Data</h3>
+      <h3>💾 Data &amp; Backup</h3>
+      <div id="storage-status" style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5;"></div>
+      <button onclick="downloadBackupJson()" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:13px;font-weight:700;margin-bottom:8px">💾 Download Backup (.json)</button>
       <button onclick="exportData();closeSettings();" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:13px;font-weight:700;margin-bottom:8px">📤 Export All Data</button>
       <button onclick="if(confirm('Clear ALL data including photos, notes, zones, and audio? This cannot be undone.')){localStorage.removeItem(LS);localStorage.removeItem('pavecapture_zones');try{indexedDB.deleteDatabase('PaveCaptureAudio');}catch(e){}location.reload();}" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:13px;font-weight:700">🗑 Clear All Data</button>
     </div>
@@ -1405,39 +1539,126 @@ var _zoneLayerGroup=null,_zonesVisible=false;
 /* ── Zone drawing state ── */
 var _zoneDrawing=false,_zoneDrawVerts=[],_zoneDrawDots=[],_zoneDrawLine=null;
 
+// Photo type categories — drives marker filtering and auto-stamping
+var PHOTO_TYPES=[
+  {k:'Vicinity',icon:'🏞',color:'#94a3b8'},
+  {k:'Pavement',icon:'🛣',color:'#f59e0b'},
+  {k:'Distress',icon:'🧱',color:'#ef4444'},
+  {k:'Curb',icon:'🟫',color:'#a855f7'},
+  {k:'Sidewalk',icon:'🚶',color:'#3b82f6'},
+  {k:'Ped Ramp',icon:'♿',color:'#0ea5e9'},
+  {k:'Curb Stop',icon:'⬛',color:'#64748b'},
+  {k:'Parking',icon:'🅿️',color:'#22c55e'},
+  {k:'Handicap',icon:'♿',color:'#0891b2'},
+  {k:'Striping',icon:'━',color:'#fbbf24'},
+  {k:'Stop Bar',icon:'⛔',color:'#dc2626'},
+  {k:'Crosswalk',icon:'▦',color:'#eab308'},
+  {k:'Sign',icon:'🪧',color:'#f97316'},
+  {k:'Drainage',icon:'💧',color:'#06b6d4'},
+  {k:'Edge Drop',icon:'📉',color:'#14b8a6'},
+  {k:'Marking',icon:'🛣️',color:'#8b5cf6'},
+  {k:'Other',icon:'📷',color:'#94a3b8'}
+];
+
 var APP={
   nmKey:NM_DEFAULT_KEY,nmDate:'',claudeKey:CLAUDE_DEFAULT_KEY,
   watermark:{enabled:true,text:'PaveCapture — Pavement Preservation Scoping',includeDate:true,includeGps:true,includeSeq:true,includeDir:true,position:'bottom-left',opacity:70},
-  markings:[], // {id,areaName,condition,parkingRows:[],lineRows:[],signComments,notes,lat,lng,dir,gpsSource,thumb,extraPhotoIds,zone,sectionId,ts,aiStatus,hasHD}
-  fieldNotes:[], // {id,type,text,lat,lng,zone,sectionId,duration,hasAudio,ts}
+  markings:[],
+  fieldNotes:[],
   photos:[],
   audioMemos:[],
   repairAreas:[],
-  sections:[], // Pavement preservation scoping sections — see SECTION_TEMPLATE
+  sections:[],
   activeSectionId:null,
-  photoCounter:0 // sequential number for reconciliation
+  activePhotoType:'Vicinity',
+  photoTypeVisible:{}, // k -> bool (missing = visible)
+  photoCounter:0
 };
 
 /* ── Persistence: IndexedDB (primary) + localStorage (fallback) ── */
+/* ── Save pipeline ──
+   Primary durable store: IndexedDB (survives Safari 7-day purge).
+   Secondary: localStorage (fast sync, small quota) — only written if
+   it will fit; never truncated to a thinner copy that could overwrite
+   a complete IDB load with incomplete data.
+   Saves are debounced to coalesce rapid bursts during batch imports. */
+var _saveTimer=null,_savePending=false;
+var _saveState={lastOk:null,lastFail:null,inFlight:false};
+
 function save(){
+  // Debounce: coalesce rapid calls into a single save after 400ms idle
+  _savePending=true;
+  if(_saveTimer)clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(function(){_saveTimer=null;_doSave();},400);
+}
+
+function saveNow(){
+  if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}
+  return _doSave();
+}
+
+function _doSave(){
+  _savePending=false;
+  _saveState.inFlight=true;
+  updateSaveIndicator();
   try{
-    // Strip blobs/large data before serializing
+    // Strip ephemeral fields (blob URLs, HD cache, last AI, etc.)
     var clone=JSON.parse(JSON.stringify(APP));
-    clone.photos.forEach(function(p){delete p.audioDataUrl;delete p._hdCached;delete p._lastAiResult;});
-    clone.audioMemos.forEach(function(a){delete a.dataUrl;});
-    clone.markings.forEach(function(m){delete m._hdCached;});
+    (clone.photos||[]).forEach(function(p){delete p.audioDataUrl;delete p._hdCached;delete p._lastAiResult;});
+    (clone.audioMemos||[]).forEach(function(a){delete a.dataUrl;});
+    (clone.markings||[]).forEach(function(m){delete m._hdCached;});
     var json=JSON.stringify(clone);
-    // Primary: IndexedDB (persistent, not subject to Safari 7-day purge)
-    idbPut('app_data',json).catch(function(e){console.warn('IDB save failed:',e);});
-    // Fallback: localStorage (fast sync, but Safari may purge)
-    try{localStorage.setItem(LS,json);}catch(e){
-      // localStorage full — try without thumbnails
-      try{
-        clone.photos.forEach(function(p){delete p.thumb;});
-        localStorage.setItem(LS,JSON.stringify(clone));
-      }catch(e2){console.warn('localStorage save failed:',e2.message);}
-    }
-  }catch(e){console.error('Save failed:',e.message);}
+
+    // Primary: IndexedDB — durable, unbounded. This is the source of truth.
+    return idbPut('app_data',json).then(function(){
+      _saveState.lastOk=Date.now();
+      _saveState.lastFail=null;
+      // Secondary: localStorage — best-effort only. If it fails, DO NOT
+      // replace the existing stored value with a truncated version.
+      try{localStorage.setItem(LS,json);}catch(e){
+        // Quota exceeded: leave old localStorage copy intact. IDB has full data.
+        console.warn('localStorage full — relying on IndexedDB only');
+      }
+    }).catch(function(e){
+      console.error('IDB save failed:',e);
+      _saveState.lastFail=Date.now();
+      // Emergency fallback: try localStorage so we don't lose THIS save.
+      try{localStorage.setItem(LS,json);_saveState.lastOk=Date.now();}catch(e2){}
+    }).finally(function(){
+      _saveState.inFlight=false;
+      updateSaveIndicator();
+    });
+  }catch(e){
+    console.error('Save serialize failed:',e.message);
+    _saveState.lastFail=Date.now();
+    _saveState.inFlight=false;
+    updateSaveIndicator();
+    return Promise.reject(e);
+  }
+}
+
+function updateSaveIndicator(){
+  var el=document.getElementById('save-indicator');
+  if(!el)return;
+  if(_saveState.inFlight){el.textContent='💾 Saving…';el.style.color='var(--accent)';}
+  else if(_saveState.lastFail&&(!_saveState.lastOk||_saveState.lastFail>_saveState.lastOk)){el.textContent='⚠ Save failed';el.style.color='var(--red)';}
+  else if(_saveState.lastOk){el.textContent='✓ Saved';el.style.color='var(--green)';}
+  else{el.textContent='';}
+}
+
+// Flush pending saves on page hide / beforeunload so nothing is lost.
+window.addEventListener('beforeunload',function(){if(_savePending)_doSave();});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&_savePending)_doSave();});
+
+function downloadBackupJson(){
+  try{
+    var clone=JSON.parse(JSON.stringify(APP));
+    (clone.photos||[]).forEach(function(p){delete p.audioDataUrl;delete p._hdCached;delete p._lastAiResult;});
+    (clone.audioMemos||[]).forEach(function(a){delete a.dataUrl;});
+    (clone.markings||[]).forEach(function(m){delete m._hdCached;});
+    var json=JSON.stringify(clone,null,2);
+    dl(json,'pavecapture_backup_'+dateStamp()+'.json','application/json');
+  }catch(e){alert('Backup failed: '+e.message);}
 }
 
 function load(){
@@ -1448,6 +1669,8 @@ function load(){
       if(!APP.repairAreas)APP.repairAreas=[];
       if(!APP.sections)APP.sections=[];
       if(!('activeSectionId' in APP))APP.activeSectionId=null;
+      if(!APP.activePhotoType)APP.activePhotoType='Vicinity';
+      if(!APP.photoTypeVisible)APP.photoTypeVisible={};
       if(!APP.photoCounter)APP.photoCounter=APP.photos.length;
     }
   }catch(e){}
@@ -1467,6 +1690,8 @@ function loadFromIDB(){
         if(!APP.fieldNotes)APP.fieldNotes=[];
         if(!APP.sections)APP.sections=[];
         if(!('activeSectionId' in APP))APP.activeSectionId=null;
+        if(!APP.activePhotoType)APP.activePhotoType='Vicinity';
+        if(!APP.photoTypeVisible)APP.photoTypeVisible={};
         if(!APP.photoCounter)APP.photoCounter=APP.photos.length;
         // Refresh UI with restored data
         updateCount();updateMarkingCount();updateNotesCount();
@@ -1988,6 +2213,36 @@ function openSettings(){
   document.getElementById('set-wm-opacity').value=wm.opacity||70;
   document.getElementById('set-wm-enabled').checked=wm.enabled!==false;
   document.getElementById('set-zone-count').textContent=SITE_ZONES.length;
+  refreshStorageStatus();
+}
+
+function refreshStorageStatus(){
+  var el=document.getElementById('storage-status');
+  if(!el)return;
+  var p=APP.photos.length,m=APP.markings.length,s=(APP.sections||[]).length,r=APP.repairAreas.length;
+  var lines=[];
+  lines.push('<b style="color:var(--accent)">Primary:</b> IndexedDB (persistent)');
+  lines.push('<b style="color:var(--accent)">Fallback:</b> localStorage (best-effort)');
+  lines.push(p+' photos · '+m+' markings · '+r+' repair areas · '+s+' sections');
+  if(_saveState.lastOk)lines.push('Last save: '+new Date(_saveState.lastOk).toLocaleTimeString());
+  if(_saveState.lastFail)lines.push('<span style="color:var(--red)">⚠ Last fail: '+new Date(_saveState.lastFail).toLocaleTimeString()+'</span>');
+  // Estimate IDB quota if available
+  if(navigator.storage&&navigator.storage.estimate){
+    navigator.storage.estimate().then(function(est){
+      if(est&&est.quota){
+        var used=Math.round((est.usage||0)/1048576),quota=Math.round(est.quota/1048576);
+        lines.push('Storage: '+used+' / '+quota+' MB used ('+Math.round(100*(est.usage||0)/est.quota)+'%)');
+        el.innerHTML=lines.join('<br>');
+      }
+    }).catch(function(){});
+  }
+  el.innerHTML=lines.join('<br>');
+  // Ask for persistent storage if available (prevents eviction under pressure)
+  if(navigator.storage&&navigator.storage.persist&&navigator.storage.persisted){
+    navigator.storage.persisted().then(function(isPersisted){
+      if(!isPersisted)navigator.storage.persist().catch(function(){});
+    }).catch(function(){});
+  }
 }
 
 function closeSettings(){
@@ -2247,25 +2502,34 @@ function rebuildMarkers(){
   APP.photos.forEach(function(p){if(p.lat&&p.lng)addMarker(p);});
 }
 
+function photoTypeVisible(t){
+  // Default = visible unless explicitly toggled off
+  var v=APP.photoTypeVisible||{};
+  return v[t||'Vicinity']!==false;
+}
+
 function addMarker(photo){
   if(!MAP||!photo.lat||!photo.lng)return;
-  var c=distressColor(photo.primary);
+  // Type filter — don't render if hidden
+  var ptype=photo.photoType||'Vicinity';
+  if(!photoTypeVisible(ptype))return;
+
   var hasDir=photo.dir!=null;
 
-  // Build SVG icon
-  var sz=36,cx=sz/2,cy=sz/2,dotR=7;
+  // Small black dot + directional arrow
+  var sz=24,cx=sz/2,cy=sz/2,dotR=3.5;
   var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'">';
   if(hasDir){
-    var r=(photo.dir*Math.PI/180)-Math.PI/2,aLen=14;
+    var r=(photo.dir*Math.PI/180)-Math.PI/2,aLen=9;
     var ax=cx+Math.cos(r)*aLen,ay=cy+Math.sin(r)*aLen;
-    var hLen=5,hAng=0.5;
+    var hLen=4,hAng=0.55;
     var h1x=ax-hLen*Math.cos(r-hAng),h1y=ay-hLen*Math.sin(r-hAng);
     var h2x=ax-hLen*Math.cos(r+hAng),h2y=ay-hLen*Math.sin(r+hAng);
-    svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+ax.toFixed(1)+'" y2="'+ay.toFixed(1)+'" stroke="'+c+'" stroke-width="3" stroke-linecap="round"/>';
-    svg+='<polygon points="'+ax.toFixed(1)+','+ay.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+c+'"/>';
+    svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+ax.toFixed(1)+'" y2="'+ay.toFixed(1)+'" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>';
+    svg+='<polygon points="'+ax.toFixed(1)+','+ay.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="#000" stroke="#fff" stroke-width="0.6"/>';
   }
-  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+dotR+'" fill="'+c+'" stroke="#fff" stroke-width="2.5"/>';
-  if(photo.hasAudio)svg+='<circle cx="'+(cx+dotR-2)+'" cy="'+(cy-dotR+2)+'" r="4" fill="'+('#ef4444')+'" stroke="#fff" stroke-width="1"/>';
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+dotR+'" fill="#000" stroke="#fff" stroke-width="1.2"/>';
+  if(photo.hasAudio)svg+='<circle cx="'+(cx+dotR+2)+'" cy="'+(cy-dotR-1)+'" r="2.2" fill="#ef4444" stroke="#fff" stroke-width="0.6"/>';
   svg+='</svg>';
 
   var icon=L.divIcon({html:'<img src="data:image/svg+xml,'+encodeURIComponent(svg)+'" style="width:'+sz+'px;height:'+sz+'px">',className:'',iconSize:[sz,sz],iconAnchor:[cx,cy]});
@@ -2274,6 +2538,7 @@ function addMarker(photo){
   var pop='<div style="max-width:180px">';
   if(photo.thumb)pop+='<img src="'+photo.thumb+'" style="width:100%;border-radius:6px;margin-bottom:4px">';
   pop+='<b style="font-size:11px">'+esc(photo.seqId||'')+' '+esc(photo.desc||photo.filename)+'</b>';
+  pop+='<div style="margin-top:3px;font-size:10px;color:#f59e0b;font-weight:700">📷 '+esc(ptype)+'</div>';
   if(photo.primary){var pc=photo.primary_src==='ai'?'#f97316':'#22c55e';pop+='<div style="margin-top:3px;font-size:10px;color:'+pc+'">● '+esc(photo.primary)+'</div>';}
   if(photo.secondary){var sc=photo.secondary_src==='ai'?'#fb923c':'#4ade80';pop+='<div style="font-size:10px;color:'+sc+'">● '+esc(photo.secondary)+'</div>';}
   if(photo.tertiary){var tc=photo.tertiary_src==='ai'?'#fdba74':'#86efac';pop+='<div style="font-size:10px;color:'+tc+'">● '+esc(photo.tertiary)+'</div>';}
@@ -2567,6 +2832,7 @@ async function batchImport(files){
       primary_src:'',secondary_src:'',tertiary_src:'',
       zone:getZoneAtPoint(photoLat,photoLng),
       sectionId:APP.activeSectionId||null,
+      photoType:APP.activePhotoType||'Vicinity',
       ts:new Date().toISOString(),thumb:thumb,_aspectRatio:aspectRatio,
       transcript:'',audioDataUrl:null,hasAudio:false,hasHD:!!thumbHD,
       aiStatus:'pending'
@@ -2761,6 +3027,7 @@ async function processNextPending(){
     desc:'',primary:'',secondary:'',tertiary:'',severity:'',
     zone:getZoneAtPoint(photoLat,photoLng),
     sectionId:APP.activeSectionId||null,
+    photoType:APP.activePhotoType||'Vicinity',
     ts:new Date().toISOString(),
     thumb:thumb,_aspectRatio:aspectRatio,
     transcript:'',audioDataUrl:null,hasAudio:false,hasHD:!!thumbHD
@@ -2824,6 +3091,27 @@ function openPhotoModal(id){
   // Form fields — auto-fill desc with zone if empty
   document.getElementById('pm-desc').value=p.desc||(zone?zone:'');
   document.getElementById('pm-severity').value=p.severity||'';
+
+  // Photo type dropdown (lazy-populate once)
+  var ptSel=document.getElementById('pm-photo-type');
+  if(ptSel&&!ptSel.options.length){
+    PHOTO_TYPES.forEach(function(t){
+      var o=document.createElement('option');o.value=t.k;o.textContent=t.icon+' '+t.k;
+      ptSel.appendChild(o);
+    });
+  }
+  if(ptSel)ptSel.value=p.photoType||'Vicinity';
+
+  // Section dropdown — always rebuild (sections list may have changed)
+  var secSel=document.getElementById('pm-section');
+  if(secSel){
+    var opts='<option value="">— Unassigned —</option>';
+    (APP.sections||[]).forEach(function(s){
+      opts+='<option value="'+esc(s.id)+'"'+(p.sectionId===s.id?' selected':'')+'>'
+        +esc((s.sectionId||'?')+' — '+(s.name||''))+'</option>';
+    });
+    secSel.innerHTML=opts;
+  }
 
   // Distress chips — pass source for color coding
   buildDistressChips('pm-dist-primary',p.primary,p.primary_src||'');
@@ -2944,6 +3232,10 @@ function savePhotoDetails(){
   var p=APP.photos.find(function(x){return x.id===_editingPhotoId;});if(!p)return;
   p.desc=document.getElementById('pm-desc').value;
   p.severity=document.getElementById('pm-severity').value;
+  var ptEl=document.getElementById('pm-photo-type');
+  if(ptEl&&ptEl.value)p.photoType=ptEl.value;
+  var secEl=document.getElementById('pm-section');
+  if(secEl)p.sectionId=secEl.value||null;
 
   // Read selected distress chips
   p.primary=getSelectedChip('pm-dist-primary');
@@ -3126,21 +3418,135 @@ function toggleQuickAudio(){
 }
 
 /* ═══ GALLERY ═══ */
+var _gallerySelecting=false;
+var _gallerySelected={}; // id -> true
+var _galleryFilter=''; // '' = all, else photoType
+
 function openGallery(){
   document.getElementById('gallery-modal').classList.add('open');
+  // Populate bulk selectors (always rebuild — sections can change)
+  var tSel=document.getElementById('gal-bulk-type');
+  if(tSel){
+    tSel.innerHTML='<option value="">Photo Type…</option>'+
+      PHOTO_TYPES.map(function(t){return '<option value="'+esc(t.k)+'">'+t.icon+' '+esc(t.k)+'</option>';}).join('');
+  }
+  var sSel=document.getElementById('gal-bulk-section');
+  if(sSel){
+    sSel.innerHTML='<option value="">Section…</option><option value="__none__">— Unassigned —</option>'+
+      (APP.sections||[]).map(function(s){return '<option value="'+esc(s.id)+'">'+esc((s.sectionId||'?')+' — '+(s.name||''))+'</option>';}).join('');
+  }
   renderGallery();
 }
-function closeGallery(){document.getElementById('gallery-modal').classList.remove('open');}
+function closeGallery(){
+  document.getElementById('gallery-modal').classList.remove('open');
+  // Exit select mode on close
+  if(_gallerySelecting)toggleGallerySelect();
+}
+
+function cycleGalleryFilter(){
+  var btn=document.getElementById('gal-filter-btn');
+  var list=['',].concat(PHOTO_TYPES.map(function(t){return t.k;}));
+  var i=list.indexOf(_galleryFilter);
+  i=(i+1)%list.length;
+  _galleryFilter=list[i];
+  btn.textContent=_galleryFilter||'All Types';
+  renderGallery();
+}
+
+function toggleGallerySelect(){
+  _gallerySelecting=!_gallerySelecting;
+  var modal=document.getElementById('gallery-modal');
+  var btn=document.getElementById('gal-select-btn');
+  if(_gallerySelecting){
+    modal.classList.add('selecting');
+    btn.textContent='✕ Done';
+    btn.style.borderColor='var(--red)';btn.style.color='var(--red)';
+  }else{
+    modal.classList.remove('selecting');
+    _gallerySelected={};
+    btn.textContent='☐ Select';
+    btn.style.borderColor='var(--border)';btn.style.color='var(--text)';
+  }
+  updateGalleryBulkCount();
+  renderGallery();
+}
+
+function updateGalleryBulkCount(){
+  var n=Object.keys(_gallerySelected).length;
+  var el=document.getElementById('gal-bulk-count');
+  if(el)el.textContent=n+' selected';
+}
+
+function gallerySelectAll(){
+  APP.photos.forEach(function(p){
+    if(!_galleryFilter||(p.photoType||'Vicinity')===_galleryFilter){
+      _gallerySelected[p.id]=true;
+    }
+  });
+  updateGalleryBulkCount();renderGallery();
+}
+function gallerySelectNone(){
+  _gallerySelected={};
+  updateGalleryBulkCount();renderGallery();
+}
+
+function bulkAssignType(){
+  var t=document.getElementById('gal-bulk-type').value;
+  if(!t){alert('Pick a Photo Type first');return;}
+  var ids=Object.keys(_gallerySelected);
+  if(!ids.length){alert('No photos selected');return;}
+  ids.forEach(function(id){
+    var p=APP.photos.find(function(x){return x.id===id;});
+    if(p)p.photoType=t;
+  });
+  save();
+  rebuildMarkers();
+  renderGallery();
+  alert(ids.length+' photo'+(ids.length!==1?'s':'')+' set to '+t);
+}
+
+function bulkAssignSection(){
+  var v=document.getElementById('gal-bulk-section').value;
+  if(!v){alert('Pick a Section first');return;}
+  var ids=Object.keys(_gallerySelected);
+  if(!ids.length){alert('No photos selected');return;}
+  var newId=v==='__none__'?null:v;
+  ids.forEach(function(id){
+    var p=APP.photos.find(function(x){return x.id===id;});
+    if(p)p.sectionId=newId;
+  });
+  save();
+  renderGallery();
+  var label=newId?(APP.sections.find(function(s){return s.id===newId;})||{}).sectionId||'section':'Unassigned';
+  alert(ids.length+' photo'+(ids.length!==1?'s':'')+' assigned to '+label);
+}
+
+function _sectionLabelForPhoto(p){
+  if(!p.sectionId)return '';
+  var s=(APP.sections||[]).find(function(x){return x.id===p.sectionId;});
+  return s?(s.sectionId||''):'';
+}
 
 function renderGallery(){
   var grid=document.getElementById('gal-grid');
   var aiCount=APP.photos.filter(function(p){return p.aiStatus==='done';}).length;
-  document.getElementById('gal-count').textContent=APP.photos.length+' photos'+(aiCount?' · '+aiCount+' AI analyzed':'')+(APP.audioMemos.length?' · '+APP.audioMemos.length+' memos':'');
-  if(!APP.photos.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">No photos yet. Tap Capture or Import.</div>';return;}
-  grid.innerHTML=APP.photos.map(function(p,i){
+  var filtered=APP.photos.filter(function(p){
+    return !_galleryFilter||(p.photoType||'Vicinity')===_galleryFilter;
+  });
+  document.getElementById('gal-count').textContent=filtered.length+'/'+APP.photos.length+' photos'+(aiCount?' · '+aiCount+' AI':'')+(APP.audioMemos.length?' · '+APP.audioMemos.length+' memos':'');
+  if(!filtered.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">'+(APP.photos.length?'No photos match filter.':'No photos yet. Tap Capture or Import.')+'</div>';return;}
+  grid.innerHTML=filtered.map(function(p,i){
     var seq=p.seqId||('PC-'+String(p.seq||i+1).padStart(3,'0'));
-    var h='<div class="gal-card" data-photo-edit="'+p.id+'" style="position:relative">';
+    var isSel=!!_gallerySelected[p.id];
+    var cls='gal-card'+(isSel?' selected':'');
+    var h='<div class="'+cls+'" data-photo-edit="'+p.id+'" style="position:relative">';
+    if(_gallerySelecting)h+='<div class="sel-check">'+(isSel?'✓':'')+'</div>';
     h+=p.thumb?'<img src="'+p.thumb+'">':'<div style="height:120px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px">📷</div>';
+    // Photo type badge
+    if(p.photoType)h+='<div class="pt-badge">📷 '+esc(p.photoType)+'</div>';
+    // Section badge
+    var sLabel=_sectionLabelForPhoto(p);
+    if(sLabel)h+='<div class="sec-badge">'+esc(sLabel)+'</div>';
     // AI status badge overlay
     if(p.aiStatus==='analyzing')h+='<div style="position:absolute;top:4px;right:4px;background:rgba(59,130,246,.9);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">🤖 Analyzing…</div>';
     else if(p.aiStatus==='done')h+='<div style="position:absolute;top:4px;right:4px;background:rgba(34,197,94,.9);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">🤖 ✓</div>';
@@ -3160,14 +3566,22 @@ function renderGallery(){
   }).join('');
 }
 
-/* Gallery card click → reopen modal */
+/* Gallery card click → select or open detail */
 document.addEventListener('click',function(e){
   var card=e.target.closest('[data-photo-edit]');
-  if(card){
-    var id=card.getAttribute('data-photo-edit');
-    closeGallery();
-    setTimeout(function(){openPhotoModal(id);},100);
+  if(!card)return;
+  // Only handle clicks inside the gallery modal (don't conflict with marking linker)
+  if(!card.closest('#gallery-modal'))return;
+  var id=card.getAttribute('data-photo-edit');
+  if(_gallerySelecting){
+    if(_gallerySelected[id])delete _gallerySelected[id];
+    else _gallerySelected[id]=true;
+    updateGalleryBulkCount();
+    renderGallery();
+    return;
   }
+  closeGallery();
+  setTimeout(function(){openPhotoModal(id);},100);
 });
 
 
@@ -4113,6 +4527,7 @@ function exportData(){
       return{
         seqId:seq,filename:p.filename,lat:p.lat,lng:p.lng,direction:p.dir,
         gpsSource:p.gpsSource,accuracy:p.accuracy,
+        photoType:p.photoType||'Vicinity',
         sectionId:sr.sectionId,sectionName:sr.sectionName,
         description:p.desc,primaryDistress:p.primary,secondaryDistress:p.secondary,
         tertiaryDistress:p.tertiary,severity:p.severity,
@@ -4185,11 +4600,11 @@ function exportData(){
   });
 
   // CSV for photos
-  var csv='Seq ID,Photo #,Filename,Section ID,Section Name,Zone,Lat,Lng,Direction,GPS Source,Description,Primary Distress,Primary Source,Secondary Distress,Secondary Source,Tertiary Distress,Tertiary Source,Severity,AI Confidence,Has Audio,Transcript,Timestamp\n';
+  var csv='Seq ID,Photo #,Filename,Photo Type,Section ID,Section Name,Zone,Lat,Lng,Direction,GPS Source,Description,Primary Distress,Primary Source,Secondary Distress,Secondary Source,Tertiary Distress,Tertiary Source,Severity,AI Confidence,Has Audio,Transcript,Timestamp\n';
   APP.photos.forEach(function(p,i){
     var seq=p.seqId||('PC-'+String(p.seq||i+1).padStart(3,'0'));
     var sr=_secRefFor(p.sectionId);
-    csv+=[seq,i+1,q(p.filename),q(sr.sectionId),q(sr.sectionName),q(p.zone||''),p.lat||'',p.lng||'',p.dir!=null?p.dir:'',p.gpsSource||'',q(p.desc),q(p.primary),p.primary_src||'',q(p.secondary),p.secondary_src||'',q(p.tertiary),p.tertiary_src||'',p.severity||'',p.aiConfidence||'',p.hasAudio?'Yes':'No',q(p.transcript||''),p.ts].join(',')+'\n';
+    csv+=[seq,i+1,q(p.filename),q(p.photoType||'Vicinity'),q(sr.sectionId),q(sr.sectionName),q(p.zone||''),p.lat||'',p.lng||'',p.dir!=null?p.dir:'',p.gpsSource||'',q(p.desc),q(p.primary),p.primary_src||'',q(p.secondary),p.secondary_src||'',q(p.tertiary),p.tertiary_src||'',p.severity||'',p.aiConfidence||'',p.hasAudio?'Yes':'No',q(p.transcript||''),p.ts].join(',')+'\n';
   });
 
   // CSV for repair areas
@@ -4622,6 +5037,7 @@ function addMarkingPhoto(){
         dir:_heading!=null?+_heading.toFixed(1):null,gpsSource:_geoStatus==='on'?'device':'manual',
         desc:'Marking photo',primary:'',secondary:'',tertiary:'',severity:'',
         sectionId:APP.activeSectionId||null,
+        photoType:'Marking',
         ts:new Date().toISOString(),thumb:thumb,_aspectRatio:1,transcript:'',audioDataUrl:null,hasAudio:false,hasHD:false
       };
       APP.photos.push(photo);
@@ -5402,7 +5818,9 @@ var _walkForSection=false;
   };
 })();
 
-function quickCapturePhoto(){
+function quickCapturePhoto(type){
+  if(type)setActivePhotoType(type);
+  else setActivePhotoType('Distress');
   closeSectionDetail();
   if(typeof capturePhoto==='function')capturePhoto();
 }
@@ -5411,13 +5829,98 @@ function quickWalkArea(){
   if(typeof toggleWalk==='function')toggleWalk();
 }
 
+/* ═══ PHOTO TYPE + LAYERS ═══ */
+function setActivePhotoType(t){
+  APP.activePhotoType=t||'Vicinity';
+  save();
+  refreshPhotoTypePill();
+}
+
+function refreshPhotoTypePill(){
+  var el=document.getElementById('photo-type-pill-name');
+  if(el)el.textContent=APP.activePhotoType||'Vicinity';
+}
+
+function openPhotoLayers(){
+  renderPhotoLayers();
+  document.getElementById('photo-layers-modal').classList.add('open');
+}
+function closePhotoLayers(){
+  document.getElementById('photo-layers-modal').classList.remove('open');
+}
+
+function photoTypeCount(k){
+  var n=0;
+  APP.photos.forEach(function(p){if((p.photoType||'Vicinity')===k)n++;});
+  return n;
+}
+
+function renderPhotoLayers(){
+  var box=document.getElementById('pl-rows');
+  if(!box)return;
+  var active=APP.activePhotoType||'Vicinity';
+  var html='';
+  PHOTO_TYPES.forEach(function(t){
+    var vis=photoTypeVisible(t.k);
+    var n=photoTypeCount(t.k);
+    var cls='pl-row'+(active===t.k?' active':'')+(vis?'':' hidden');
+    html+='<div class="'+cls+'" data-type="'+esc(t.k)+'">'
+      +'<span class="pl-icon">'+t.icon+'</span>'
+      +'<span class="pl-name">'+esc(t.k)+'</span>'
+      +'<span class="pl-count">'+n+'</span>'
+      +'<button class="pl-set-active" onclick="event.stopPropagation();setActivePhotoTypeFromPanel(\''+esc(t.k)+'\')">'+(active===t.k?'✓ Active':'Set')+'</button>'
+      +'<span class="pl-eye" onclick="event.stopPropagation();togglePhotoTypeVisibility(\''+esc(t.k)+'\')">'+(vis?'👁':'◯')+'</span>'
+      +'</div>';
+  });
+  box.innerHTML=html;
+}
+
+function setActivePhotoTypeFromPanel(t){
+  setActivePhotoType(t);
+  renderPhotoLayers();
+}
+
+function togglePhotoTypeVisibility(t){
+  if(!APP.photoTypeVisible)APP.photoTypeVisible={};
+  // Currently visible = toggle to false (hidden); currently hidden = delete key (default visible)
+  if(photoTypeVisible(t)){
+    APP.photoTypeVisible[t]=false;
+  }else{
+    delete APP.photoTypeVisible[t];
+  }
+  save();
+  rebuildMarkers();
+  renderPhotoLayers();
+}
+
+function showAllPhotoTypes(){
+  APP.photoTypeVisible={};
+  save();rebuildMarkers();renderPhotoLayers();
+}
+
+function hideAllPhotoTypes(){
+  if(!APP.photoTypeVisible)APP.photoTypeVisible={};
+  PHOTO_TYPES.forEach(function(t){APP.photoTypeVisible[t.k]=false;});
+  save();rebuildMarkers();renderPhotoLayers();
+}
+
 /* ─── End Sections module ─── */
 
 if(!APP.markings)APP.markings=[];
 if(!APP.fieldNotes)APP.fieldNotes=[];
 if(!APP.sections)APP.sections=[];
 if(!('activeSectionId' in APP))APP.activeSectionId=null;
-updateCount();updateMarkingCount();updateNotesCount();refreshSiteLocations();refreshSectionChip();
+if(!APP.activePhotoType)APP.activePhotoType='Vicinity';
+if(!APP.photoTypeVisible)APP.photoTypeVisible={};
+// Request persistent storage so the OS won't evict our IndexedDB under pressure
+if(navigator.storage&&navigator.storage.persist){
+  navigator.storage.persisted().then(function(isPersisted){
+    if(!isPersisted)navigator.storage.persist().then(function(granted){
+      if(granted)console.log('Persistent storage granted');
+    }).catch(function(){});
+  }).catch(function(){});
+}
+updateCount();updateMarkingCount();updateNotesCount();refreshSiteLocations();refreshSectionChip();refreshPhotoTypePill();
 if(APP.nmKey||APP.claudeKey){
   document.getElementById('nm-setup').style.display='none';
   document.getElementById('nm-key-input').value=APP.nmKey||'';
