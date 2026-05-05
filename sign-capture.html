@@ -159,15 +159,25 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
     <div id="measure-overlay"></div>
 
     <div id="instruction-bar">
-      Tap <b>Start AR</b> to begin LiDAR measurement, or <b>📷 Photo</b> for manual capture.
+      Tap <b>📐 Start AR</b> for LiDAR measurement. If dimmed, enable WebXR in Safari → Settings → Advanced → Feature Flags.
     </div>
 
     <!-- No-AR fallback -->
     <div id="no-ar-panel" style="display:none">
       <div class="card">
-        <h2>📐 Manual Mode</h2>
-        <p>WebXR AR is not available on this device. You can still capture sign photos and enter dimensions manually.</p>
-        <button onclick="closeNoAr()" style="width:100%;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800">Continue in Manual Mode</button>
+        <h2>📐 Enable WebXR AR</h2>
+        <p>To use LiDAR measurement, WebXR AR must be enabled in Safari:</p>
+        <ol style="text-align:left;font-size:12px;color:var(--text);padding-left:18px;margin-bottom:12px;line-height:1.6">
+          <li>Open <b>Settings</b> on your iPad/iPhone</li>
+          <li>Scroll to <b>Safari</b> (or <b>Apps → Safari</b> on iOS 18+)</li>
+          <li>Tap <b>Advanced</b> (at the bottom)</li>
+          <li>Tap <b>Feature Flags</b></li>
+          <li>Search for <b>WebXR</b></li>
+          <li>Enable: <b>WebXR</b>, <b>WebXR Augmented Reality Module</b>, <b>WebXR Hand Input Module</b>, and <b>WebXR Hit Test Module</b></li>
+          <li>Reload this page in Safari</li>
+        </ol>
+        <p style="font-size:11px">Requires iPad Pro (2020+) or iPhone 12 Pro+ for LiDAR accuracy.</p>
+        <button onclick="closeNoAr()" style="width:100%;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800;margin-top:8px">Continue in Manual Mode</button>
       </div>
     </div>
 
@@ -336,22 +346,35 @@ function stopCamera(){
 // ═══ WebXR AR + LiDAR Hit-Testing ═══
 
 function checkARSupport(){
+  var btn=document.getElementById('btn-ar');
   if(!navigator.xr){
-    document.getElementById('btn-ar').style.display='none';
+    // WebXR not available — keep button visible, show requirements on tap
+    btn.style.opacity='0.7';
     return false;
   }
   navigator.xr.isSessionSupported('immersive-ar').then(function(supported){
     if(!supported){
-      document.getElementById('btn-ar').style.opacity='0.4';
-      document.getElementById('btn-ar').title='AR not supported on this device';
+      btn.style.opacity='0.7';
+    }else{
+      btn.style.opacity='1';
+      updateInstruction('LiDAR ready. Tap <b>📐 Start AR</b> to measure a sign, or <b>📷 Photo</b> to capture first.');
     }
-  });
+  }).catch(function(){btn.style.opacity='0.7';});
   return true;
 }
 
 async function startAR(){
+  // Check requirements and give clear feedback
   if(!navigator.xr){
-    showNoAr();return;
+    alert('WebXR is not available.\n\nRequirements:\n• Safari on iOS 15+ (not Chrome/Firefox)\n• iPad Pro or iPhone Pro for LiDAR accuracy\n• Open this page directly in Safari (not from an in-app browser)\n\nYou can still use Manual mode (📏) to enter dimensions by hand.');
+    return;
+  }
+
+  var supported=false;
+  try{supported=await navigator.xr.isSessionSupported('immersive-ar');}catch(e){}
+  if(!supported){
+    alert('Immersive AR is not supported on this device/browser.\n\nRequirements:\n• Safari on iOS 15+\n• iPad Pro (2020+) or iPhone 12 Pro+ for LiDAR\n\nTip: On iPad, go to Settings → Safari → Advanced → Feature Flags and make sure "WebXR Augmented Reality Module" is ON.\n\nYou can still use Manual mode (📏).');
+    return;
   }
 
   try{
