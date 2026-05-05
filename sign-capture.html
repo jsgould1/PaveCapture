@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>SignCapture — LiDAR Sign Measurement</title>
+<title>SignCapture — Sign Measurement</title>
 <style>
 :root{
   --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#f1f5f9;
@@ -16,7 +16,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:14px;
   -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
 select,input,textarea{font-size:16px !important;}
-button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 
 #app{display:flex;flex-direction:column;height:100%;height:100dvh;}
 
@@ -34,29 +33,17 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
 }
 
-/* Main area */
-#main-area{flex:1;position:relative;overflow:hidden;background:#000;}
+/* Main area — photo + measurement canvas */
+#main-area{flex:1;position:relative;overflow:hidden;background:#000;touch-action:none;}
+#measure-canvas{position:absolute;inset:0;width:100%;height:100%;}
 
-/* Camera / AR view */
-#camera-view{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-#camera-view video{width:100%;height:100%;object-fit:cover;}
-#camera-view canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
-
-/* Measurement overlay */
-#measure-overlay{
-  position:absolute;inset:0;pointer-events:none;z-index:10;
+#empty-state{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:16px;padding:24px;text-align:center;
 }
-#measure-overlay .point-marker{
-  position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;
-  background:var(--accent);border:3px solid #fff;border-radius:50%;
-  box-shadow:0 0 8px rgba(0,0,0,.6);pointer-events:none;z-index:11;
-}
-#measure-overlay .dimension-label{
-  position:absolute;background:rgba(0,0,0,.8);color:var(--accent);
-  padding:4px 10px;border-radius:8px;font-size:14px;font-weight:800;
-  white-space:nowrap;transform:translate(-50%,-50%);z-index:12;
-  border:1px solid var(--accent);
-}
+#empty-state .es-icon{font-size:64px;}
+#empty-state .es-title{font-size:18px;font-weight:800;color:var(--accent);}
+#empty-state .es-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:320px;}
 
 /* Instruction bar */
 #instruction-bar{
@@ -64,7 +51,22 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   background:rgba(15,23,42,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   border:1px solid var(--accent);border-radius:12px;padding:10px 14px;
   text-align:center;font-size:13px;font-weight:700;color:var(--accent);
+  display:none;
 }
+#instruction-bar.show{display:block;}
+
+/* Measurement step indicator */
+#step-pills{
+  position:absolute;bottom:8px;left:8px;right:8px;z-index:20;
+  display:none;justify-content:center;gap:6px;
+}
+#step-pills.show{display:flex;}
+.step-pill{
+  padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800;
+  background:var(--surface);border:1px solid var(--border);color:var(--muted);
+}
+.step-pill.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.step-pill.done{background:var(--green);color:#000;border-color:var(--green);}
 
 /* Bottom action bar */
 #action-bar{
@@ -81,21 +83,21 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .act-btn .label{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
 .act-btn:active{transform:scale(.95);}
 
-/* Measurement result panel */
+/* Result panel */
 #result-panel{
   position:absolute;bottom:0;left:0;right:0;z-index:30;
   background:var(--surface);border-top:1px solid var(--accent);
   border-top-left-radius:18px;border-top-right-radius:18px;
   padding:16px;display:none;box-shadow:0 -8px 24px rgba(0,0,0,.5);
-  max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  max-height:70vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
 }
 #result-panel.open{display:block;}
 #result-panel h3{font-size:16px;font-weight:800;color:var(--accent);margin-bottom:10px;}
 .result-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-.result-row .rl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;width:80px;flex-shrink:0;}
+.result-row .rl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;width:90px;flex-shrink:0;}
 .result-row .rv{font-size:16px;font-weight:800;color:var(--text);}
 
-/* Sign log */
+/* Sign log modal */
 #sign-log-modal{
   display:none;position:fixed;inset:0;z-index:900;background:var(--bg);
   flex-direction:column;overflow:hidden;
@@ -118,7 +120,7 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 .sign-card .sc-meta{font-size:11px;color:var(--muted);line-height:1.5;}
 .sign-card .sc-size{font-size:14px;font-weight:800;color:var(--green);margin-top:4px;}
 
-/* Form fields reused from PaveCapture pattern */
+/* Form */
 .fm-group{margin-bottom:12px;}
 .fm-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
 .fm-input,.fm-select{
@@ -127,23 +129,40 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
 }
 .fm-input:focus,.fm-select:focus{border-color:var(--accent);outline:none;}
 
-/* No-AR fallback */
-#no-ar-panel{
-  position:absolute;inset:0;background:var(--bg);display:flex;
-  align-items:center;justify-content:center;padding:24px;z-index:50;
+/* Reference selector */
+#ref-selector{
+  position:absolute;bottom:60px;left:8px;right:8px;z-index:25;
+  background:rgba(15,23,42,.95);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--accent);border-radius:14px;padding:14px;
+  display:none;
 }
-#no-ar-panel .card{
-  max-width:400px;background:var(--surface);border:1px solid var(--border);
-  border-radius:16px;padding:24px;text-align:center;
+#ref-selector.show{display:block;}
+#ref-selector h4{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:10px;text-align:center;}
+.ref-option{
+  display:flex;align-items:center;gap:10px;padding:10px;margin-bottom:6px;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  cursor:pointer;
 }
-#no-ar-panel .card h2{font-size:18px;color:var(--accent);margin-bottom:8px;}
-#no-ar-panel .card p{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:16px;}
+.ref-option:active{background:var(--bg);}
+.ref-option .ro-icon{font-size:24px;flex-shrink:0;}
+.ref-option .ro-text{flex:1;}
+.ref-option .ro-name{font-size:13px;font-weight:700;color:var(--text);}
+.ref-option .ro-size{font-size:10px;color:var(--muted);}
+#custom-ref-row{display:flex;gap:6px;align-items:center;margin-top:8px;}
+#custom-ref-row input{
+  flex:1;padding:10px;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:14px;
+}
+#custom-ref-row button{
+  padding:10px 16px;background:var(--accent);color:#000;border:none;border-radius:8px;
+  font-size:13px;font-weight:800;cursor:pointer;
+}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="top-bar">
-    <div class="brand">SignCapture<span>LiDAR</span></div>
+    <div class="brand">SignCapture<span>Measure</span></div>
     <div class="top-spacer"></div>
     <span id="sign-count" style="font-size:12px;color:var(--accent);font-weight:800">0 signs</span>
     <button class="top-btn" onclick="openSignLog()">📋 Log</button>
@@ -151,97 +170,68 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   </div>
 
   <div id="main-area">
-    <div id="camera-view">
-      <video id="cam-video" autoplay playsinline muted></video>
-      <canvas id="draw-canvas"></canvas>
+    <canvas id="measure-canvas"></canvas>
+
+    <div id="empty-state">
+      <div class="es-icon">🪧</div>
+      <div class="es-title">Capture a Sign</div>
+      <div class="es-sub">Take a photo of a roadside sign. Then draw lines on the photo to measure its width and height using a known reference.</div>
     </div>
 
-    <div id="measure-overlay"></div>
+    <div id="instruction-bar"></div>
 
-    <div id="instruction-bar">
-      Tap <b>📐 Start AR</b> for LiDAR measurement. If dimmed, enable WebXR in Safari → Settings → Advanced → Feature Flags.
+    <div id="step-pills">
+      <div class="step-pill" id="sp-ref">1. Reference</div>
+      <div class="step-pill" id="sp-width">2. Width</div>
+      <div class="step-pill" id="sp-height">3. Height</div>
     </div>
 
-    <!-- No-AR fallback -->
-    <div id="no-ar-panel" style="display:none">
-      <div class="card">
-        <h2>📐 Enable WebXR AR</h2>
-        <p>To use LiDAR measurement, WebXR AR must be enabled in Safari:</p>
-        <ol style="text-align:left;font-size:12px;color:var(--text);padding-left:18px;margin-bottom:12px;line-height:1.6">
-          <li>Open <b>Settings</b> on your iPad/iPhone</li>
-          <li>Scroll to <b>Safari</b> (or <b>Apps → Safari</b> on iOS 18+)</li>
-          <li>Tap <b>Advanced</b> (at the bottom)</li>
-          <li>Tap <b>Feature Flags</b></li>
-          <li>Search for <b>WebXR</b></li>
-          <li>Enable: <b>WebXR</b>, <b>WebXR Augmented Reality Module</b>, <b>WebXR Hand Input Module</b>, and <b>WebXR Hit Test Module</b></li>
-          <li>Reload this page in Safari</li>
-        </ol>
-        <p style="font-size:11px">Requires iPad Pro (2020+) or iPhone 12 Pro+ for LiDAR accuracy.</p>
-        <button onclick="closeNoAr()" style="width:100%;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800;margin-top:8px">Continue in Manual Mode</button>
+    <!-- Reference object selector -->
+    <div id="ref-selector">
+      <h4>What reference is in the photo?</h4>
+      <div class="ref-option" onclick="setRef('credit-card',3.375)">
+        <span class="ro-icon">💳</span>
+        <div class="ro-text"><div class="ro-name">Credit Card / ID Card</div><div class="ro-size">3.375 in (85.6 mm) width</div></div>
       </div>
-    </div>
-
-    <!-- Result panel -->
-    <div id="result-panel">
-      <h3>📐 Measurement Result</h3>
-      <div class="result-row"><span class="rl">Width</span><span class="rv" id="res-width">—</span></div>
-      <div class="result-row"><span class="rl">Height</span><span class="rv" id="res-height">—</span></div>
-      <div class="result-row"><span class="rl">Distance</span><span class="rv" id="res-distance">—</span></div>
-
-      <div style="margin-top:12px">
-        <div class="fm-group">
-          <div class="fm-label">Sign Type</div>
-          <input type="text" class="fm-input" id="res-type" placeholder="e.g. Speed Limit, Stop, Yield, Street Name" list="sign-types">
-        </div>
-        <div class="fm-group">
-          <div class="fm-label">MUTCD Code</div>
-          <input type="text" class="fm-input" id="res-mutcd" placeholder="e.g. R1-1, R2-1, W1-1" list="mutcd-codes">
-        </div>
-        <div class="fm-group">
-          <div class="fm-label">Condition</div>
-          <select class="fm-select" id="res-condition">
-            <option value="">— Select —</option>
-            <option>Good</option><option>Fair</option><option>Poor</option>
-            <option>Damaged</option><option>Missing</option><option>Faded</option>
-          </select>
-        </div>
-        <div class="fm-group">
-          <div class="fm-label">Manual Width (in)</div>
-          <input type="number" class="fm-input" id="res-manual-w" placeholder="Override if LiDAR is inaccurate" min="0" step="0.5" inputmode="decimal">
-        </div>
-        <div class="fm-group">
-          <div class="fm-label">Manual Height (in)</div>
-          <input type="number" class="fm-input" id="res-manual-h" placeholder="Override if LiDAR is inaccurate" min="0" step="0.5" inputmode="decimal">
-        </div>
-        <div class="fm-group">
-          <div class="fm-label">Notes</div>
-          <textarea class="fm-input" id="res-notes" rows="2" placeholder="Post height, reflectivity, mounting..."></textarea>
-        </div>
+      <div class="ref-option" onclick="setRef('dollar-bill',6.14)">
+        <span class="ro-icon">💵</span>
+        <div class="ro-text"><div class="ro-name">US Dollar Bill</div><div class="ro-size">6.14 in (156 mm) width</div></div>
       </div>
-
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button onclick="discardMeasurement()" style="flex:1;padding:12px;background:var(--bg);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:700">Discard</button>
-        <button onclick="saveMeasurement()" style="flex:2;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:800">💾 Save Sign</button>
+      <div class="ref-option" onclick="setRef('tape-measure',12)">
+        <span class="ro-icon">📏</span>
+        <div class="ro-text"><div class="ro-name">12-inch Ruler / Tape Mark</div><div class="ro-size">12.0 in (305 mm)</div></div>
+      </div>
+      <div class="ref-option" onclick="setRef('hard-hat',9.5)">
+        <span class="ro-icon">⛑</span>
+        <div class="ro-text"><div class="ro-name">Hard Hat (width)</div><div class="ro-size">~9.5 in (241 mm)</div></div>
+      </div>
+      <div class="ref-option" onclick="setRef('no-ref',0)">
+        <span class="ro-icon">🚫</span>
+        <div class="ro-text"><div class="ro-name">No Reference — Enter Manually</div><div class="ro-size">Skip reference, type dimensions later</div></div>
+      </div>
+      <div id="custom-ref-row">
+        <input type="number" id="custom-ref-val" placeholder="Custom reference (inches)" min="0" step="0.1" inputmode="decimal">
+        <button onclick="setRef('custom',parseFloat(document.getElementById('custom-ref-val').value)||0)">Use</button>
       </div>
     </div>
   </div>
 
   <div id="action-bar">
-    <button class="act-btn" id="btn-ar" onclick="startAR()" style="background:var(--accent);color:#000;">
-      <span class="icon">📐</span><span class="label">Start AR</span>
-    </button>
-    <button class="act-btn" onclick="capturePhoto()" style="background:var(--blue);color:#fff;">
+    <button class="act-btn" onclick="capturePhoto()" style="background:var(--accent);color:#000;">
       <span class="icon">📷</span><span class="label">Photo</span>
     </button>
-    <button class="act-btn" id="btn-measure-manual" onclick="startManualMeasure()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);">
-      <span class="icon">📏</span><span class="label">Manual</span>
+    <button class="act-btn" id="btn-measure" onclick="startMeasure()" style="background:var(--blue);color:#fff;">
+      <span class="icon">📐</span><span class="label">Measure</span>
+    </button>
+    <button class="act-btn" id="btn-undo" onclick="undoLine()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);">
+      <span class="icon">↩</span><span class="label">Undo</span>
     </button>
     <button class="act-btn" onclick="openSignLog()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);">
       <span class="icon">📋</span><span class="label">Log</span>
     </button>
   </div>
 
-  <input type="file" id="photo-input" accept="image/*" style="display:none" multiple>
+  <input type="file" id="photo-input" accept="image/*" style="display:none">
 </div>
 
 <!-- Sign Log Modal -->
@@ -254,60 +244,97 @@ button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
   <div class="log-body" id="log-body"></div>
 </div>
 
+<!-- Result panel -->
+<div id="result-panel">
+  <h3>📐 Sign Measurement</h3>
+  <div class="result-row"><span class="rl">Width</span><span class="rv" id="res-width">—</span></div>
+  <div class="result-row"><span class="rl">Height</span><span class="rv" id="res-height">—</span></div>
+  <div class="result-row"><span class="rl">Method</span><span class="rv" id="res-method">—</span></div>
+
+  <div style="margin-top:12px">
+    <div class="fm-group">
+      <div class="fm-label">Sign Type</div>
+      <input type="text" class="fm-input" id="res-type" placeholder="e.g. Speed Limit, Stop, Yield" list="sign-types">
+    </div>
+    <div class="fm-group">
+      <div class="fm-label">MUTCD Code</div>
+      <input type="text" class="fm-input" id="res-mutcd" placeholder="e.g. R1-1, R2-1" list="mutcd-codes">
+    </div>
+    <div class="fm-group">
+      <div class="fm-label">Condition</div>
+      <select class="fm-select" id="res-condition">
+        <option value="">— Select —</option>
+        <option>Good</option><option>Fair</option><option>Poor</option>
+        <option>Damaged</option><option>Missing</option><option>Faded</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="fm-group" style="flex:1">
+        <div class="fm-label">Width (in)</div>
+        <input type="number" class="fm-input" id="res-manual-w" placeholder="—" min="0" step="0.5" inputmode="decimal">
+      </div>
+      <div class="fm-group" style="flex:1">
+        <div class="fm-label">Height (in)</div>
+        <input type="number" class="fm-input" id="res-manual-h" placeholder="—" min="0" step="0.5" inputmode="decimal">
+      </div>
+    </div>
+    <div class="fm-group">
+      <div class="fm-label">Notes</div>
+      <textarea class="fm-input" id="res-notes" rows="2" placeholder="Post height, reflectivity, mounting..."></textarea>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button onclick="discardMeasurement()" style="flex:1;padding:12px;background:var(--bg);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:700">Discard</button>
+    <button onclick="saveMeasurement()" style="flex:2;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:800">💾 Save Sign</button>
+  </div>
+</div>
+
 <!-- Datalists -->
 <datalist id="sign-types">
   <option value="Speed Limit"><option value="Stop"><option value="Yield">
   <option value="Street Name"><option value="No Parking"><option value="One Way">
   <option value="Do Not Enter"><option value="Handicap Parking"><option value="School Zone">
-  <option value="Pedestrian Crossing"><option value="Railroad Crossing"><option value="Merge">
-  <option value="Lane Ends"><option value="Curve"><option value="No U-Turn">
-  <option value="Information"><option value="Guide"><option value="Warning">
-  <option value="Regulatory"><option value="Construction">
+  <option value="Pedestrian Crossing"><option value="Merge"><option value="Lane Ends">
+  <option value="Curve"><option value="Warning"><option value="Regulatory">
+  <option value="Guide"><option value="Construction"><option value="Information">
 </datalist>
 <datalist id="mutcd-codes">
   <option value="R1-1 (Stop)"><option value="R1-2 (Yield)">
-  <option value="R2-1 (Speed Limit)"><option value="R3-1 (No Right Turn)">
-  <option value="R5-1 (Do Not Enter)"><option value="R7-1 (No Parking)">
-  <option value="R7-8 (Handicap Parking)"><option value="R6-1 (One Way)">
-  <option value="W1-1 (Turn)"><option value="W1-2 (Curve)">
-  <option value="W2-1 (Intersection)"><option value="W3-1 (Stop Ahead)">
+  <option value="R2-1 (Speed Limit)"><option value="R5-1 (Do Not Enter)">
+  <option value="R7-1 (No Parking)"><option value="R7-8 (Handicap)">
+  <option value="R6-1 (One Way)"><option value="W1-1 (Turn)">
+  <option value="W1-2 (Curve)"><option value="W3-1 (Stop Ahead)">
   <option value="W11-2 (Pedestrian)"><option value="D1-1 (Street Name)">
-  <option value="D3-1 (Guide)"><option value="S1-1 (School Zone)">
+  <option value="S1-1 (School Zone)">
 </datalist>
 
 <script>
 /* ═══════════════════════════════════════════════════════════
-   SignCapture — LiDAR Sign Measurement Tool
-   Uses WebXR AR + hit-testing on iPad/iPhone with LiDAR to
-   measure sign dimensions by tapping corners. Falls back to
-   manual photo + dimension entry on non-AR devices.
+   SignCapture — Photo-Based Sign Measurement
+   ═══════════════════════════════════════════════════════════
+   Workflow:
+   1. Capture or pick a photo of the sign
+   2. Draw a line along a known reference object (credit card, ruler, etc.)
+   3. Draw lines for the sign's width and height
+   4. Tool computes real dimensions from the pixel-to-inches ratio
    ═══════════════════════════════════════════════════════════ */
 
 var SIGNS=[];
-var _currentPhoto=null;
 var _currentThumb=null;
-var _arSession=null;
-var _arRefSpace=null;
-var _hitTestSource=null;
-var _measurePoints=[]; // [{x,y,z, screenX, screenY}]
-var _measureState='idle'; // idle | measuring-width | measuring-height | done
-var _lastWidth=null,_lastHeight=null,_lastDistance=null;
-var _cameraStream=null;
+var _img=null; // loaded Image for the canvas
+var _canvas,_ctx;
+
+// Measurement state
+var _mode='idle'; // idle | ref | width | height | done
+var _lines={ref:null,width:null,height:null}; // each: {x1,y1,x2,y2} in canvas coords
+var _activeStart=null; // first tap of current line
+var _refInches=0; // known reference size in inches
 
 // Persistence
 var LS_KEY='signcapture_v1';
-function save(){
-  try{
-    var clone=JSON.parse(JSON.stringify(SIGNS));
-    localStorage.setItem(LS_KEY,JSON.stringify(clone));
-  }catch(e){console.warn('Save failed:',e);}
-}
-function load(){
-  try{
-    var r=localStorage.getItem(LS_KEY);
-    if(r)SIGNS=JSON.parse(r);
-  }catch(e){}
-}
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(SIGNS));}catch(e){}}
+function load(){try{var r=localStorage.getItem(LS_KEY);if(r)SIGNS=JSON.parse(r);}catch(e){}}
 
 // GPS
 var _lat=null,_lng=null;
@@ -315,242 +342,63 @@ function startGPS(){
   if(!navigator.geolocation)return;
   navigator.geolocation.watchPosition(
     function(p){_lat=p.coords.latitude;_lng=p.coords.longitude;},
-    function(){},
-    {enableHighAccuracy:true,maximumAge:5000,timeout:10000}
+    function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000}
   );
 }
 
-// Camera stream for preview (non-AR mode)
-async function startCamera(){
-  try{
-    var stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}},
-      audio:false
-    });
-    _cameraStream=stream;
-    var vid=document.getElementById('cam-video');
-    vid.srcObject=stream;
-    vid.play();
-  }catch(e){
-    console.warn('Camera error:',e);
-  }
+// ═══ Canvas setup ═══
+
+function initCanvas(){
+  _canvas=document.getElementById('measure-canvas');
+  _ctx=_canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize',resizeCanvas);
+
+  // Touch / mouse handlers for drawing lines
+  _canvas.addEventListener('touchstart',onTouchStart,{passive:false});
+  _canvas.addEventListener('touchmove',onTouchMove,{passive:false});
+  _canvas.addEventListener('touchend',onTouchEnd,{passive:false});
+  _canvas.addEventListener('mousedown',onMouseDown);
+  _canvas.addEventListener('mousemove',onMouseMove);
+  _canvas.addEventListener('mouseup',onMouseUp);
 }
 
-function stopCamera(){
-  if(_cameraStream){
-    _cameraStream.getTracks().forEach(function(t){t.stop();});
-    _cameraStream=null;
-  }
+function resizeCanvas(){
+  var r=_canvas.parentElement.getBoundingClientRect();
+  _canvas.width=r.width*window.devicePixelRatio;
+  _canvas.height=r.height*window.devicePixelRatio;
+  _canvas.style.width=r.width+'px';
+  _canvas.style.height=r.height+'px';
+  _ctx.setTransform(window.devicePixelRatio,0,0,window.devicePixelRatio,0,0);
+  redraw();
 }
 
-// ═══ WebXR AR + LiDAR Hit-Testing ═══
-
-function checkARSupport(){
-  var btn=document.getElementById('btn-ar');
-  if(!navigator.xr){
-    // WebXR not available — keep button visible, show requirements on tap
-    btn.style.opacity='0.7';
-    return false;
-  }
-  navigator.xr.isSessionSupported('immersive-ar').then(function(supported){
-    if(!supported){
-      btn.style.opacity='0.7';
-    }else{
-      btn.style.opacity='1';
-      updateInstruction('LiDAR ready. Tap <b>📐 Start AR</b> to measure a sign, or <b>📷 Photo</b> to capture first.');
-    }
-  }).catch(function(){btn.style.opacity='0.7';});
-  return true;
-}
-
-async function startAR(){
-  // Check requirements and give clear feedback
-  if(!navigator.xr){
-    alert('WebXR is not available.\n\nRequirements:\n• Safari on iOS 15+ (not Chrome/Firefox)\n• iPad Pro or iPhone Pro for LiDAR accuracy\n• Open this page directly in Safari (not from an in-app browser)\n\nYou can still use Manual mode (📏) to enter dimensions by hand.');
-    return;
-  }
-
-  var supported=false;
-  try{supported=await navigator.xr.isSessionSupported('immersive-ar');}catch(e){}
-  if(!supported){
-    alert('Immersive AR is not supported on this device/browser.\n\nRequirements:\n• Safari on iOS 15+\n• iPad Pro (2020+) or iPhone 12 Pro+ for LiDAR\n\nTip: On iPad, go to Settings → Safari → Advanced → Feature Flags and make sure "WebXR Augmented Reality Module" is ON.\n\nYou can still use Manual mode (📏).');
-    return;
-  }
-
-  try{
-    // Request immersive AR with hit-test and DOM overlay
-    _arSession=await navigator.xr.requestSession('immersive-ar',{
-      requiredFeatures:['hit-test','local-floor'],
-      optionalFeatures:['dom-overlay','depth-sensing'],
-      domOverlay:{root:document.getElementById('main-area')},
-      depthSensing:{
-        usagePreference:['cpu-optimized'],
-        dataFormatPreference:['luminance-alpha']
-      }
-    });
-
-    _arRefSpace=await _arSession.requestReferenceSpace('local-floor');
-    var viewerSpace=await _arSession.requestReferenceSpace('viewer');
-
-    // Hit test source from the center of the screen
-    _hitTestSource=await _arSession.requestHitTestSource({space:viewerSpace});
-
-    _measurePoints=[];
-    _measureState='measuring-width';
-    updateInstruction('Tap the <b>LEFT</b> edge of the sign');
-
-    // Listen for tap (select) events
-    _arSession.addEventListener('select',onARSelect);
-    _arSession.addEventListener('end',function(){
-      _arSession=null;_hitTestSource=null;
-      document.getElementById('btn-ar').querySelector('.label').textContent='Start AR';
-      updateInstruction('AR session ended. Tap Start AR to resume.');
-    });
-
-    document.getElementById('btn-ar').querySelector('.label').textContent='AR Active';
-
-    // Start render loop (needed to keep the session alive and process hit tests)
-    _arSession.requestAnimationFrame(onARFrame);
-
-  }catch(e){
-    console.error('AR start failed:',e);
-    if(e.message&&e.message.indexOf('NotSupportedError')>=0){
-      showNoAr();
-    }else{
-      alert('Failed to start AR: '+e.message+'\n\nTry using Safari on an iPad Pro or iPhone Pro with LiDAR.');
-    }
-  }
-}
-
-function onARFrame(time,frame){
-  if(!_arSession)return;
-  _arSession.requestAnimationFrame(onARFrame);
-
-  // We could render a reticle here but since we're using DOM overlay,
-  // the camera passthrough + DOM elements handle the UI.
-}
-
-function onARSelect(event){
-  if(!_arSession||!_hitTestSource)return;
-
-  var frame=event.frame;
-  var results=frame.getHitTestResults(_hitTestSource);
-  if(!results||!results.length)return;
-
-  var pose=results[0].getPose(_arRefSpace);
-  if(!pose)return;
-
-  var p=pose.transform.position;
-  var pt={x:p.x,y:p.y,z:p.z};
-  _measurePoints.push(pt);
-
-  if(_measureState==='measuring-width'){
-    if(_measurePoints.length===1){
-      updateInstruction('Tap the <b>RIGHT</b> edge of the sign');
-    }
-    if(_measurePoints.length===2){
-      var w=dist3D(_measurePoints[0],_measurePoints[1]);
-      _lastWidth=w;
-      _measureState='measuring-height';
-      updateInstruction('Width: <b>'+formatDim(w)+'</b> — Now tap the <b>BOTTOM</b> edge');
-    }
-  }else if(_measureState==='measuring-height'){
-    if(_measurePoints.length===3){
-      var h=dist3D(_measurePoints[1],_measurePoints[2]);
-      _lastHeight=h;
-      // Distance from camera to sign center (average of all points)
-      var cx=(_measurePoints[0].x+_measurePoints[1].x+_measurePoints[2].x)/3;
-      var cy=(_measurePoints[0].y+_measurePoints[1].y+_measurePoints[2].y)/3;
-      var cz=(_measurePoints[0].z+_measurePoints[1].z+_measurePoints[2].z)/3;
-      _lastDistance=dist3D({x:0,y:0,z:0},{x:cx,y:cy,z:cz});
-      _measureState='done';
-
-      // End AR session and show results
-      endAR();
-      showResults();
-    }
-  }
-}
-
-function endAR(){
-  if(_arSession){
-    _arSession.end().catch(function(){});
-    _arSession=null;_hitTestSource=null;
-  }
-  document.getElementById('btn-ar').querySelector('.label').textContent='Start AR';
-}
-
-function dist3D(a,b){
-  return Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2+(b.z-a.z)**2);
-}
-
-function formatDim(meters){
-  var inches=meters*39.3701;
-  if(inches<60)return inches.toFixed(1)+' in ('+Math.round(inches/12*10)/10+' ft)';
-  return (inches/12).toFixed(1)+' ft ('+Math.round(inches)+' in)';
-}
-
-function updateInstruction(html){
-  document.getElementById('instruction-bar').innerHTML=html;
-}
-
-function showNoAr(){
-  document.getElementById('no-ar-panel').style.display='flex';
-}
-function closeNoAr(){
-  document.getElementById('no-ar-panel').style.display='none';
-}
-
-// ═══ Manual Measure (no AR — photo + user-entered dimensions) ═══
-
-function startManualMeasure(){
-  _measureState='done';
-  _lastWidth=null;_lastHeight=null;_lastDistance=null;
-  showResults();
-  updateInstruction('Manual mode — enter dimensions in the form below.');
-}
-
-// ═══ Photo Capture ═══
+// ═══ Photo capture ═══
 
 function capturePhoto(){
-  // Capture from video stream if active, else use file picker
-  var vid=document.getElementById('cam-video');
-  if(vid.srcObject&&vid.videoWidth>0){
-    var cv=document.createElement('canvas');
-    cv.width=vid.videoWidth;cv.height=vid.videoHeight;
-    cv.getContext('2d').drawImage(vid,0,0);
-    _currentPhoto=cv.toDataURL('image/jpeg',0.85);
-
-    // Thumbnail
-    var tc=document.createElement('canvas');
-    var tw=480,th=Math.round(480*vid.videoHeight/vid.videoWidth);
-    tc.width=tw;tc.height=th;
-    tc.getContext('2d').drawImage(vid,0,0,tw,th);
-    _currentThumb=tc.toDataURL('image/jpeg',0.7);
-
-    updateInstruction('📷 Photo captured. Tap <b>📐 Start AR</b> to measure or <b>📏 Manual</b> to enter dimensions.');
-    return;
-  }
-
-  // Fallback: file picker
   var inp=document.getElementById('photo-input');
   inp.onchange=function(){
     if(!inp.files||!inp.files.length)return;
     var file=inp.files[0];
     var reader=new FileReader();
     reader.onload=function(e){
-      _currentPhoto=e.target.result;
-      // Make thumbnail
       var img=new Image();
       img.onload=function(){
+        _img=img;
+        // Make thumbnail
         var tc=document.createElement('canvas');
         var tw=480,th=Math.round(480*img.height/img.width);
         tc.width=tw;tc.height=th;
         tc.getContext('2d').drawImage(img,0,0,tw,th);
         _currentThumb=tc.toDataURL('image/jpeg',0.7);
+        // Reset measurement
+        _lines={ref:null,width:null,height:null};
+        _mode='idle';_activeStart=null;_refInches=0;
+        document.getElementById('empty-state').style.display='none';
+        redraw();
+        showInstruction('Photo loaded. Tap <b>📐 Measure</b> to start.');
       };
       img.src=e.target.result;
-      updateInstruction('📷 Photo loaded. Tap <b>📐 Start AR</b> or <b>📏 Manual</b>.');
     };
     reader.readAsDataURL(file);
     inp.value='';
@@ -558,65 +406,283 @@ function capturePhoto(){
   inp.click();
 }
 
+// ═══ Measurement flow ═══
+
+function startMeasure(){
+  if(!_img){alert('Capture or select a photo first.');return;}
+  _lines={ref:null,width:null,height:null};
+  _activeStart=null;
+  _mode='ref';
+  showRefSelector();
+}
+
+function setRef(type,inches){
+  document.getElementById('ref-selector').classList.remove('show');
+  if(type==='no-ref'||!inches){
+    _refInches=0;
+    _lines.ref=null;
+    _mode='width';
+    updateSteps();
+    showInstruction('Draw a line across the sign <b>WIDTH</b> (left to right).');
+    return;
+  }
+  _refInches=inches;
+  _mode='ref';
+  updateSteps();
+  showInstruction('Draw a line along the <b>reference object</b> ('+inches+' in) in the photo.');
+}
+
+function showRefSelector(){
+  document.getElementById('ref-selector').classList.add('show');
+}
+
+function linePixelLength(l){
+  if(!l)return 0;
+  return Math.sqrt((l.x2-l.x1)**2+(l.y2-l.y1)**2);
+}
+
+function computeDimensions(){
+  var refPx=linePixelLength(_lines.ref);
+  var wPx=linePixelLength(_lines.width);
+  var hPx=linePixelLength(_lines.height);
+
+  if(!_refInches||!refPx){
+    // No reference — can't compute, let user enter manually
+    return{widthIn:null,heightIn:null,method:'Manual'};
+  }
+
+  var pxPerInch=refPx/_refInches;
+  return{
+    widthIn:wPx?Math.round(wPx/pxPerInch*10)/10:null,
+    heightIn:hPx?Math.round(hPx/pxPerInch*10)/10:null,
+    method:'Photo Reference ('+_refInches+' in)'
+  };
+}
+
+// ═══ Canvas drawing ═══
+
+function redraw(){
+  if(!_ctx)return;
+  var w=_canvas.width/window.devicePixelRatio;
+  var h=_canvas.height/window.devicePixelRatio;
+  _ctx.clearRect(0,0,w,h);
+
+  // Draw image fitted
+  if(_img){
+    var scale=Math.min(w/_img.width,h/_img.height);
+    var iw=_img.width*scale,ih=_img.height*scale;
+    var ox=(w-iw)/2,oy=(h-ih)/2;
+    _ctx.drawImage(_img,ox,oy,iw,ih);
+  }
+
+  // Draw completed lines
+  drawLine(_lines.ref,'#22c55e','REF');
+  drawLine(_lines.width,'#3b82f6','WIDTH');
+  drawLine(_lines.height,'#f59e0b','HEIGHT');
+
+  // Draw in-progress line
+  if(_activeStart&&_activeCurrent){
+    var color=_mode==='ref'?'#22c55e':_mode==='width'?'#3b82f6':'#f59e0b';
+    _ctx.beginPath();
+    _ctx.moveTo(_activeStart.x,_activeStart.y);
+    _ctx.lineTo(_activeCurrent.x,_activeCurrent.y);
+    _ctx.strokeStyle=color;_ctx.lineWidth=3;
+    _ctx.setLineDash([8,4]);_ctx.stroke();_ctx.setLineDash([]);
+
+    // Endpoints
+    drawEndpoint(_activeStart.x,_activeStart.y,color);
+    drawEndpoint(_activeCurrent.x,_activeCurrent.y,color);
+  }
+}
+
+function drawLine(line,color,label){
+  if(!line)return;
+  _ctx.beginPath();
+  _ctx.moveTo(line.x1,line.y1);_ctx.lineTo(line.x2,line.y2);
+  _ctx.strokeStyle=color;_ctx.lineWidth=3;_ctx.stroke();
+  drawEndpoint(line.x1,line.y1,color);
+  drawEndpoint(line.x2,line.y2,color);
+
+  // Label at midpoint
+  var mx=(line.x1+line.x2)/2,my=(line.y1+line.y2)/2;
+  _ctx.font='bold 12px -apple-system, sans-serif';
+  _ctx.textAlign='center';_ctx.textBaseline='middle';
+  var tw=_ctx.measureText(label).width+12;
+  _ctx.fillStyle='rgba(0,0,0,.75)';
+  _ctx.beginPath();_ctx.roundRect(mx-tw/2,my-10,tw,20,6);_ctx.fill();
+  _ctx.fillStyle=color;_ctx.fillText(label,mx,my);
+}
+
+function drawEndpoint(x,y,color){
+  _ctx.beginPath();_ctx.arc(x,y,6,0,Math.PI*2);
+  _ctx.fillStyle='#fff';_ctx.fill();
+  _ctx.beginPath();_ctx.arc(x,y,4,0,Math.PI*2);
+  _ctx.fillStyle=color;_ctx.fill();
+}
+
+// ═══ Touch / mouse handlers ═══
+
+var _activeCurrent=null;
+
+function getPos(e){
+  var r=_canvas.getBoundingClientRect();
+  var t=e.touches?e.touches[0]:(e.changedTouches?e.changedTouches[0]:e);
+  return{x:t.clientX-r.left,y:t.clientY-r.top};
+}
+
+function onTouchStart(e){
+  if(_mode==='idle'||_mode==='done')return;
+  e.preventDefault();
+  _activeStart=getPos(e);_activeCurrent=_activeStart;
+  redraw();
+}
+function onTouchMove(e){
+  if(!_activeStart)return;
+  e.preventDefault();
+  _activeCurrent=getPos(e);
+  redraw();
+}
+function onTouchEnd(e){
+  if(!_activeStart)return;
+  e.preventDefault();
+  var end=getPos(e);
+  commitLine(_activeStart,end);
+  _activeStart=null;_activeCurrent=null;
+}
+
+function onMouseDown(e){
+  if(_mode==='idle'||_mode==='done')return;
+  _activeStart=getPos(e);_activeCurrent=_activeStart;
+}
+function onMouseMove(e){
+  if(!_activeStart)return;
+  _activeCurrent=getPos(e);
+  redraw();
+}
+function onMouseUp(e){
+  if(!_activeStart)return;
+  var end=getPos(e);
+  commitLine(_activeStart,end);
+  _activeStart=null;_activeCurrent=null;
+}
+
+function commitLine(start,end){
+  // Ignore accidental taps (line too short)
+  var len=Math.sqrt((end.x-start.x)**2+(end.y-start.y)**2);
+  if(len<10){redraw();return;}
+
+  var line={x1:start.x,y1:start.y,x2:end.x,y2:end.y};
+
+  if(_mode==='ref'){
+    _lines.ref=line;
+    _mode='width';
+    showInstruction('Reference set. Now draw a line across the sign <b>WIDTH</b>.');
+  }else if(_mode==='width'){
+    _lines.width=line;
+    _mode='height';
+    showInstruction('Width drawn. Now draw a line for the sign <b>HEIGHT</b>.');
+  }else if(_mode==='height'){
+    _lines.height=line;
+    _mode='done';
+    showInstruction('');
+    document.getElementById('instruction-bar').classList.remove('show');
+    showResults();
+  }
+  updateSteps();
+  redraw();
+}
+
+function undoLine(){
+  if(_mode==='done'||_mode==='height'){
+    if(_lines.height){_lines.height=null;_mode='height';showInstruction('Draw the sign <b>HEIGHT</b>.');}
+    else if(_lines.width){_lines.width=null;_mode='width';showInstruction('Draw the sign <b>WIDTH</b>.');}
+    else if(_lines.ref){_lines.ref=null;_mode='ref';showInstruction('Draw the <b>reference</b> line.');}
+  }else if(_mode==='width'){
+    if(_lines.width){_lines.width=null;}
+    else if(_lines.ref){_lines.ref=null;_mode='ref';showInstruction('Draw the <b>reference</b> line.');}
+  }else if(_mode==='ref'){
+    if(_lines.ref){_lines.ref=null;}
+  }
+  document.getElementById('result-panel').classList.remove('open');
+  updateSteps();redraw();
+}
+
+// ═══ UI helpers ═══
+
+function showInstruction(html){
+  var el=document.getElementById('instruction-bar');
+  if(!html){el.classList.remove('show');return;}
+  el.innerHTML=html;el.classList.add('show');
+}
+
+function updateSteps(){
+  var pills=document.getElementById('step-pills');
+  pills.classList.add('show');
+  var r=document.getElementById('sp-ref');
+  var w=document.getElementById('sp-width');
+  var h=document.getElementById('sp-height');
+  r.className='step-pill'+(_mode==='ref'?' active':(_lines.ref||!_refInches?' done':''));
+  w.className='step-pill'+(_mode==='width'?' active':(_lines.width?' done':''));
+  h.className='step-pill'+(_mode==='height'?' active':(_lines.height?' done':''));
+  // If no ref used, mark step 1 as done
+  if(!_refInches&&_mode!=='ref')r.className='step-pill done';
+}
+
 // ═══ Results ═══
 
 function showResults(){
-  var panel=document.getElementById('result-panel');
-  document.getElementById('res-width').textContent=_lastWidth?formatDim(_lastWidth):'— (enter manually)';
-  document.getElementById('res-height').textContent=_lastHeight?formatDim(_lastHeight):'— (enter manually)';
-  document.getElementById('res-distance').textContent=_lastDistance?((_lastDistance*3.281).toFixed(1)+' ft'):'—';
+  var dims=computeDimensions();
+  document.getElementById('res-width').textContent=dims.widthIn?(dims.widthIn+' in'):'— enter below';
+  document.getElementById('res-height').textContent=dims.heightIn?(dims.heightIn+' in'):'— enter below';
+  document.getElementById('res-method').textContent=dims.method;
 
-  // Pre-fill manual fields if we have LiDAR data
-  if(_lastWidth)document.getElementById('res-manual-w').value=(_lastWidth*39.3701).toFixed(1);
-  if(_lastHeight)document.getElementById('res-manual-h').value=(_lastHeight*39.3701).toFixed(1);
-
-  // Clear other fields
+  document.getElementById('res-manual-w').value=dims.widthIn||'';
+  document.getElementById('res-manual-h').value=dims.heightIn||'';
   document.getElementById('res-type').value='';
   document.getElementById('res-mutcd').value='';
   document.getElementById('res-condition').value='';
   document.getElementById('res-notes').value='';
 
-  panel.classList.add('open');
+  document.getElementById('result-panel').classList.add('open');
 }
 
 function discardMeasurement(){
   document.getElementById('result-panel').classList.remove('open');
-  _measurePoints=[];_measureState='idle';
-  _lastWidth=null;_lastHeight=null;_lastDistance=null;
-  updateInstruction('Measurement discarded. Tap <b>Start AR</b> or <b>📷 Photo</b>.');
+  _mode='idle';_lines={ref:null,width:null,height:null};_activeStart=null;
+  document.getElementById('step-pills').classList.remove('show');
+  redraw();
+  showInstruction('Discarded. Tap <b>📐 Measure</b> to try again.');
 }
 
 function saveMeasurement(){
-  var widthIn=parseFloat(document.getElementById('res-manual-w').value)||(_lastWidth?_lastWidth*39.3701:null);
-  var heightIn=parseFloat(document.getElementById('res-manual-h').value)||(_lastHeight?_lastHeight*39.3701:null);
+  var wIn=parseFloat(document.getElementById('res-manual-w').value)||null;
+  var hIn=parseFloat(document.getElementById('res-manual-h').value)||null;
 
   var sign={
     id:'sg'+Date.now()+Math.random().toString(36).slice(2,5),
     type:document.getElementById('res-type').value||'Unknown',
     mutcd:document.getElementById('res-mutcd').value||'',
     condition:document.getElementById('res-condition').value||'',
-    widthIn:widthIn?Math.round(widthIn*10)/10:null,
-    heightIn:heightIn?Math.round(heightIn*10)/10:null,
-    distanceFt:_lastDistance?Math.round(_lastDistance*3.281*10)/10:null,
-    source:_lastWidth?'LiDAR':'Manual',
+    widthIn:wIn?Math.round(wIn*10)/10:null,
+    heightIn:hIn?Math.round(hIn*10)/10:null,
+    source:_refInches?'Photo Ref':'Manual',
+    refInches:_refInches||null,
     notes:document.getElementById('res-notes').value||'',
     lat:_lat?+_lat.toFixed(6):null,
     lng:_lng?+_lng.toFixed(6):null,
     thumb:_currentThumb||null,
-    photo:_currentPhoto||null,
     ts:new Date().toISOString()
   };
 
-  SIGNS.push(sign);
-  save();
-  updateSignCount();
+  SIGNS.push(sign);save();updateSignCount();
 
   document.getElementById('result-panel').classList.remove('open');
-  _measurePoints=[];_measureState='idle';
-  _lastWidth=null;_lastHeight=null;_lastDistance=null;
-  _currentPhoto=null;_currentThumb=null;
-
-  updateInstruction('✓ Sign saved ('+sign.type+(sign.widthIn?' — '+sign.widthIn+'" × '+sign.heightIn+'"':'')+')');
+  _mode='idle';_lines={ref:null,width:null,height:null};_activeStart=null;
+  document.getElementById('step-pills').classList.remove('show');
+  _img=null;_currentThumb=null;
+  document.getElementById('empty-state').style.display='flex';
+  redraw();
+  showInstruction('✓ Saved: '+sign.type+(sign.widthIn?' — '+sign.widthIn+'" × '+(sign.heightIn||'?')+'"':''));
 }
 
 // ═══ Sign Log ═══
@@ -629,13 +695,11 @@ function openSignLog(){
   renderSignLog();
   document.getElementById('sign-log-modal').classList.add('open');
 }
-function closeSignLog(){
-  document.getElementById('sign-log-modal').classList.remove('open');
-}
+function closeSignLog(){document.getElementById('sign-log-modal').classList.remove('open');}
 
 function renderSignLog(){
   var body=document.getElementById('log-body');
-  document.getElementById('log-count').textContent=SIGNS.length+' sign'+(SIGNS.length!==1?'s':'');
+  document.getElementById('log-count').textContent=SIGNS.length;
   if(!SIGNS.length){
     body.innerHTML='<div style="text-align:center;padding:32px;color:var(--muted)">No signs captured yet.</div>';
     return;
@@ -646,10 +710,9 @@ function renderSignLog(){
     if(s.thumb)h+='<img src="'+s.thumb+'">';
     h+='<div class="sc-body">';
     h+='<div class="sc-title">'+esc(s.type||'Sign')+(s.mutcd?' · '+esc(s.mutcd):'')+'</div>';
-    h+='<div class="sc-size">'+dims+(s.source==='LiDAR'?' (LiDAR)':' (Manual)')+'</div>';
+    h+='<div class="sc-size">'+dims+' ('+esc(s.source)+')</div>';
     h+='<div class="sc-meta">';
     if(s.condition)h+=esc(s.condition)+' · ';
-    if(s.distanceFt)h+=s.distanceFt+' ft away · ';
     if(s.lat)h+=s.lat+', '+s.lng+' · ';
     h+=new Date(s.ts).toLocaleString();
     h+='</div>';
@@ -665,51 +728,22 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 function exportSigns(){
   if(!SIGNS.length){alert('No signs to export');return;}
-
-  var data={
-    exportDate:new Date().toISOString(),
-    signs:SIGNS.map(function(s){
-      var c=Object.assign({},s);delete c.photo;delete c.thumb;
-      return c;
-    }),
-    summary:{
-      total:SIGNS.length,
-      withLiDAR:SIGNS.filter(function(s){return s.source==='LiDAR';}).length,
-      withGPS:SIGNS.filter(function(s){return s.lat;}).length,
-      conditions:{}
-    }
-  };
-  SIGNS.forEach(function(s){
-    if(s.condition){
-      data.summary.conditions[s.condition]=(data.summary.conditions[s.condition]||0)+1;
-    }
-  });
-
-  var json=JSON.stringify(data,null,2);
-  dl(json,'signcapture_'+dateStamp()+'.json','application/json');
-
-  var csv='ID,Type,MUTCD,Condition,Width (in),Height (in),Distance (ft),Source,Lat,Lng,Notes,Timestamp\n';
-  SIGNS.forEach(function(s){
-    csv+=[s.id,q(s.type),q(s.mutcd),q(s.condition),s.widthIn||'',s.heightIn||'',s.distanceFt||'',s.source,s.lat||'',s.lng||'',q(s.notes),s.ts].join(',')+'\n';
-  });
+  var data={exportDate:new Date().toISOString(),signs:SIGNS.map(function(s){var c=Object.assign({},s);delete c.thumb;return c;})};
+  dl(JSON.stringify(data,null,2),'signcapture_'+dateStamp()+'.json','application/json');
+  var csv='ID,Type,MUTCD,Condition,Width (in),Height (in),Source,Ref (in),Lat,Lng,Notes,Timestamp\n';
+  SIGNS.forEach(function(s){csv+=[s.id,q(s.type),q(s.mutcd),q(s.condition),s.widthIn||'',s.heightIn||'',q(s.source),s.refInches||'',s.lat||'',s.lng||'',q(s.notes),s.ts].join(',')+'\n';});
   setTimeout(function(){dl(csv,'signcapture_'+dateStamp()+'.csv','text/csv');},300);
 }
-
 function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
 function dateStamp(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function dl(content,name,type){
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([content],{type:type}));
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:type}));
   a.download=name;document.body.appendChild(a);a.click();
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},200);
 }
 
 // ═══ Init ═══
-load();
-updateSignCount();
-checkARSupport();
-startGPS();
-startCamera();
+load();updateSignCount();startGPS();initCanvas();
 </script>
 </body>
 </html>
