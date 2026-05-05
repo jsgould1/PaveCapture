@@ -175,42 +175,65 @@ select,input,textarea{font-size:16px !important;}
     <div id="empty-state">
       <div class="es-icon">🪧</div>
       <div class="es-title">Capture a Sign</div>
-      <div class="es-sub">Take a photo of a roadside sign. Then draw lines on the photo to measure its width and height using a known reference.</div>
+      <div class="es-sub">Take a photo of a sign with its <b>post visible</b>. Then select the post type, draw across the post width to calibrate, and draw the sign's width and height. Dimensions computed automatically.</div>
     </div>
 
     <div id="instruction-bar"></div>
 
     <div id="step-pills">
-      <div class="step-pill" id="sp-ref">1. Reference</div>
+      <div class="step-pill" id="sp-ref">1. Post</div>
       <div class="step-pill" id="sp-width">2. Width</div>
       <div class="step-pill" id="sp-height">3. Height</div>
     </div>
 
     <!-- Reference object selector -->
     <div id="ref-selector">
-      <h4>What reference is in the photo?</h4>
-      <div class="ref-option" onclick="setRef('credit-card',3.375)">
-        <span class="ro-icon">💳</span>
-        <div class="ro-text"><div class="ro-name">Credit Card / ID Card</div><div class="ro-size">3.375 in (85.6 mm) width</div></div>
+      <h4>What type of sign post is visible?</h4>
+      <p style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:10px;line-height:1.4">Draw a line across the <b>post width</b> in the photo to calibrate measurements.</p>
+      <div class="ref-option" onclick="setRef('u-channel-2',2)">
+        <span class="ro-icon">┃</span>
+        <div class="ro-text"><div class="ro-name">U-Channel Post (2")</div><div class="ro-size">Standard DOT U-channel — 2.0 in face width</div></div>
       </div>
-      <div class="ref-option" onclick="setRef('dollar-bill',6.14)">
-        <span class="ro-icon">💵</span>
-        <div class="ro-text"><div class="ro-name">US Dollar Bill</div><div class="ro-size">6.14 in (156 mm) width</div></div>
+      <div class="ref-option" onclick="setRef('u-channel-2.25',2.25)">
+        <span class="ro-icon">┃</span>
+        <div class="ro-text"><div class="ro-name">U-Channel Post (2¼")</div><div class="ro-size">Heavy-duty U-channel — 2.25 in face width</div></div>
       </div>
-      <div class="ref-option" onclick="setRef('tape-measure',12)">
-        <span class="ro-icon">📏</span>
-        <div class="ro-text"><div class="ro-name">12-inch Ruler / Tape Mark</div><div class="ro-size">12.0 in (305 mm)</div></div>
+      <div class="ref-option" onclick="setRef('u-channel-3',3)">
+        <span class="ro-icon">┃</span>
+        <div class="ro-text"><div class="ro-name">U-Channel Post (3")</div><div class="ro-size">Wide U-channel — 3.0 in face width</div></div>
       </div>
-      <div class="ref-option" onclick="setRef('hard-hat',9.5)">
-        <span class="ro-icon">⛑</span>
-        <div class="ro-text"><div class="ro-name">Hard Hat (width)</div><div class="ro-size">~9.5 in (241 mm)</div></div>
+      <div class="ref-option" onclick="setRef('square-2',2)">
+        <span class="ro-icon">▪</span>
+        <div class="ro-text"><div class="ro-name">Square Tube Post (2")</div><div class="ro-size">Telespar / perforated — 2.0 × 2.0 in</div></div>
       </div>
-      <div class="ref-option" onclick="setRef('no-ref',0)">
-        <span class="ro-icon">🚫</span>
-        <div class="ro-text"><div class="ro-name">No Reference — Enter Manually</div><div class="ro-size">Skip reference, type dimensions later</div></div>
+      <div class="ref-option" onclick="setRef('square-2.5',2.5)">
+        <span class="ro-icon">▪</span>
+        <div class="ro-text"><div class="ro-name">Square Tube Post (2½")</div><div class="ro-size">Heavy square tube — 2.5 × 2.5 in</div></div>
+      </div>
+      <div class="ref-option" onclick="setRef('round-2.375',2.375)">
+        <span class="ro-icon">●</span>
+        <div class="ro-text"><div class="ro-name">Round Post (2⅜")</div><div class="ro-size">Standard round pipe — 2.375 in diameter</div></div>
+      </div>
+      <div class="ref-option" onclick="setRef('round-2.875',2.875)">
+        <span class="ro-icon">●</span>
+        <div class="ro-text"><div class="ro-name">Round Post (2⅞")</div><div class="ro-size">Heavy round pipe — 2.875 in diameter</div></div>
+      </div>
+      <div class="ref-option" onclick="setRef('wood-4x4',3.5)">
+        <span class="ro-icon">▦</span>
+        <div class="ro-text"><div class="ro-name">Wood 4×4 Post</div><div class="ro-size">Actual dimension — 3.5 × 3.5 in</div></div>
+      </div>
+      <div class="ref-option" onclick="setRef('wood-6x6',5.5)">
+        <span class="ro-icon">▦</span>
+        <div class="ro-text"><div class="ro-name">Wood 6×6 Post</div><div class="ro-size">Actual dimension — 5.5 × 5.5 in</div></div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:10px 0;padding-top:10px">
+        <div class="ref-option" onclick="setRef('no-ref',0)">
+          <span class="ro-icon">🚫</span>
+          <div class="ro-text"><div class="ro-name">No Reference — Enter Manually</div><div class="ro-size">Skip calibration, type dimensions later</div></div>
+        </div>
       </div>
       <div id="custom-ref-row">
-        <input type="number" id="custom-ref-val" placeholder="Custom reference (inches)" min="0" step="0.1" inputmode="decimal">
+        <input type="number" id="custom-ref-val" placeholder="Custom width (inches)" min="0" step="0.125" inputmode="decimal">
         <button onclick="setRef('custom',parseFloat(document.getElementById('custom-ref-val').value)||0)">Use</button>
       </div>
     </div>
@@ -330,6 +353,7 @@ var _mode='idle'; // idle | ref | width | height | done
 var _lines={ref:null,width:null,height:null}; // each: {x1,y1,x2,y2} in canvas coords
 var _activeStart=null; // first tap of current line
 var _refInches=0; // known reference size in inches
+var _refLabel=''; // post type label for export
 
 // Persistence
 var LS_KEY='signcapture_v1';
@@ -427,9 +451,10 @@ function setRef(type,inches){
     return;
   }
   _refInches=inches;
+  _refLabel=type;
   _mode='ref';
   updateSteps();
-  showInstruction('Draw a line along the <b>reference object</b> ('+inches+' in) in the photo.');
+  showInstruction('Draw a line across the <b>post width</b> ('+inches+' in) in the photo. Zoom in if needed.');
 }
 
 function showRefSelector(){
@@ -455,7 +480,7 @@ function computeDimensions(){
   return{
     widthIn:wPx?Math.round(wPx/pxPerInch*10)/10:null,
     heightIn:hPx?Math.round(hPx/pxPerInch*10)/10:null,
-    method:'Photo Reference ('+_refInches+' in)'
+    method:'Post calibrated ('+(_refLabel||'ref')+' @ '+_refInches+' in)'
   };
 }
 
@@ -665,7 +690,8 @@ function saveMeasurement(){
     condition:document.getElementById('res-condition').value||'',
     widthIn:wIn?Math.round(wIn*10)/10:null,
     heightIn:hIn?Math.round(hIn*10)/10:null,
-    source:_refInches?'Photo Ref':'Manual',
+    source:_refInches?'Post Calibrated':'Manual',
+    refType:_refLabel||'',
     refInches:_refInches||null,
     notes:document.getElementById('res-notes').value||'',
     lat:_lat?+_lat.toFixed(6):null,
@@ -730,8 +756,8 @@ function exportSigns(){
   if(!SIGNS.length){alert('No signs to export');return;}
   var data={exportDate:new Date().toISOString(),signs:SIGNS.map(function(s){var c=Object.assign({},s);delete c.thumb;return c;})};
   dl(JSON.stringify(data,null,2),'signcapture_'+dateStamp()+'.json','application/json');
-  var csv='ID,Type,MUTCD,Condition,Width (in),Height (in),Source,Ref (in),Lat,Lng,Notes,Timestamp\n';
-  SIGNS.forEach(function(s){csv+=[s.id,q(s.type),q(s.mutcd),q(s.condition),s.widthIn||'',s.heightIn||'',q(s.source),s.refInches||'',s.lat||'',s.lng||'',q(s.notes),s.ts].join(',')+'\n';});
+  var csv='ID,Type,MUTCD,Condition,Width (in),Height (in),Source,Post Type,Post Width (in),Lat,Lng,Notes,Timestamp\n';
+  SIGNS.forEach(function(s){csv+=[s.id,q(s.type),q(s.mutcd),q(s.condition),s.widthIn||'',s.heightIn||'',q(s.source),q(s.refType||''),s.refInches||'',s.lat||'',s.lng||'',q(s.notes),s.ts].join(',')+'\n';});
   setTimeout(function(){dl(csv,'signcapture_'+dateStamp()+'.csv','text/csv');},300);
 }
 function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
