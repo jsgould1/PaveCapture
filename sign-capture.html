@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SignCapture — LiDAR Sign Measurement</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#f1f5f9;
+  --muted:#94a3b8;--accent:#f59e0b;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:14px;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
+select,input,textarea{font-size:16px !important;}
+button,input,select,textarea{-webkit-tap-highlight-color:transparent;}
+
+#app{display:flex;flex-direction:column;height:100%;height:100dvh;}
+
+/* Top bar */
+#top-bar{
+  background:var(--surface);padding:8px 14px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  padding-top:max(8px,env(safe-area-inset-top));
+}
+#top-bar .brand{font-weight:800;font-size:16px;color:var(--accent);}
+#top-bar .brand span{color:var(--text);font-weight:400;font-size:12px;margin-left:6px;}
+.top-spacer{flex:1;}
+.top-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+}
+
+/* Main area */
+#main-area{flex:1;position:relative;overflow:hidden;background:#000;}
+
+/* Camera / AR view */
+#camera-view{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+#camera-view video{width:100%;height:100%;object-fit:cover;}
+#camera-view canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+
+/* Measurement overlay */
+#measure-overlay{
+  position:absolute;inset:0;pointer-events:none;z-index:10;
+}
+#measure-overlay .point-marker{
+  position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;
+  background:var(--accent);border:3px solid #fff;border-radius:50%;
+  box-shadow:0 0 8px rgba(0,0,0,.6);pointer-events:none;z-index:11;
+}
+#measure-overlay .dimension-label{
+  position:absolute;background:rgba(0,0,0,.8);color:var(--accent);
+  padding:4px 10px;border-radius:8px;font-size:14px;font-weight:800;
+  white-space:nowrap;transform:translate(-50%,-50%);z-index:12;
+  border:1px solid var(--accent);
+}
+
+/* Instruction bar */
+#instruction-bar{
+  position:absolute;top:8px;left:8px;right:8px;z-index:20;
+  background:rgba(15,23,42,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--accent);border-radius:12px;padding:10px 14px;
+  text-align:center;font-size:13px;font-weight:700;color:var(--accent);
+}
+
+/* Bottom action bar */
+#action-bar{
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom));
+  display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;
+}
+.act-btn{
+  flex:1;padding:12px 10px;border-radius:12px;border:none;font-size:13px;
+  font-weight:800;display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;min-width:70px;
+}
+.act-btn .icon{font-size:22px;}
+.act-btn .label{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
+.act-btn:active{transform:scale(.95);}
+
+/* Measurement result panel */
+#result-panel{
+  position:absolute;bottom:0;left:0;right:0;z-index:30;
+  background:var(--surface);border-top:1px solid var(--accent);
+  border-top-left-radius:18px;border-top-right-radius:18px;
+  padding:16px;display:none;box-shadow:0 -8px 24px rgba(0,0,0,.5);
+  max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+#result-panel.open{display:block;}
+#result-panel h3{font-size:16px;font-weight:800;color:var(--accent);margin-bottom:10px;}
+.result-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.result-row .rl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;width:80px;flex-shrink:0;}
+.result-row .rv{font-size:16px;font-weight:800;color:var(--text);}
+
+/* Sign log */
+#sign-log-modal{
+  display:none;position:fixed;inset:0;z-index:900;background:var(--bg);
+  flex-direction:column;overflow:hidden;
+}
+#sign-log-modal.open{display:flex;}
+.log-header{
+  background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  padding-top:max(10px,env(safe-area-inset-top));
+}
+.log-header .title{font-weight:700;font-size:14px;flex:1;}
+.log-body{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch;}
+.sign-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:12px;margin-bottom:10px;display:flex;gap:10px;
+}
+.sign-card img{width:80px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;}
+.sign-card .sc-body{flex:1;min-width:0;}
+.sign-card .sc-title{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:3px;}
+.sign-card .sc-meta{font-size:11px;color:var(--muted);line-height:1.5;}
+.sign-card .sc-size{font-size:14px;font-weight:800;color:var(--green);margin-top:4px;}
+
+/* Form fields reused from PaveCapture pattern */
+.fm-group{margin-bottom:12px;}
+.fm-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.fm-input,.fm-select{
+  width:100%;padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;
+}
+.fm-input:focus,.fm-select:focus{border-color:var(--accent);outline:none;}
+
+/* No-AR fallback */
+#no-ar-panel{
+  position:absolute;inset:0;background:var(--bg);display:flex;
+  align-items:center;justify-content:center;padding:24px;z-index:50;
+}
+#no-ar-panel .card{
+  max-width:400px;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:24px;text-align:center;
+}
+#no-ar-panel .card h2{font-size:18px;color:var(--accent);margin-bottom:8px;}
+#no-ar-panel .card p{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top-bar">
+    <div class="brand">SignCapture<span>LiDAR</span></div>
+    <div class="top-spacer"></div>
+    <span id="sign-count" style="font-size:12px;color:var(--accent);font-weight:800">0 signs</span>
+    <button class="top-btn" onclick="openSignLog()">📋 Log</button>
+    <button class="top-btn" onclick="exportSigns()">📤</button>
+  </div>
+
+  <div id="main-area">
+    <div id="camera-view">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="draw-canvas"></canvas>
+    </div>
+
+    <div id="measure-overlay"></div>
+
+    <div id="instruction-bar">
+      Tap <b>Start AR</b> to begin LiDAR measurement, or <b>📷 Photo</b> for manual capture.
+    </div>
+
+    <!-- No-AR fallback -->
+    <div id="no-ar-panel" style="display:none">
+      <div class="card">
+        <h2>📐 Manual Mode</h2>
+        <p>WebXR AR is not available on this device. You can still capture sign photos and enter dimensions manually.</p>
+        <button onclick="closeNoAr()" style="width:100%;padding:14px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:15px;font-weight:800">Continue in Manual Mode</button>
+      </div>
+    </div>
+
+    <!-- Result panel -->
+    <div id="result-panel">
+      <h3>📐 Measurement Result</h3>
+      <div class="result-row"><span class="rl">Width</span><span class="rv" id="res-width">—</span></div>
+      <div class="result-row"><span class="rl">Height</span><span class="rv" id="res-height">—</span></div>
+      <div class="result-row"><span class="rl">Distance</span><span class="rv" id="res-distance">—</span></div>
+
+      <div style="margin-top:12px">
+        <div class="fm-group">
+          <div class="fm-label">Sign Type</div>
+          <input type="text" class="fm-input" id="res-type" placeholder="e.g. Speed Limit, Stop, Yield, Street Name" list="sign-types">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">MUTCD Code</div>
+          <input type="text" class="fm-input" id="res-mutcd" placeholder="e.g. R1-1, R2-1, W1-1" list="mutcd-codes">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Condition</div>
+          <select class="fm-select" id="res-condition">
+            <option value="">— Select —</option>
+            <option>Good</option><option>Fair</option><option>Poor</option>
+            <option>Damaged</option><option>Missing</option><option>Faded</option>
+          </select>
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Manual Width (in)</div>
+          <input type="number" class="fm-input" id="res-manual-w" placeholder="Override if LiDAR is inaccurate" min="0" step="0.5" inputmode="decimal">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Manual Height (in)</div>
+          <input type="number" class="fm-input" id="res-manual-h" placeholder="Override if LiDAR is inaccurate" min="0" step="0.5" inputmode="decimal">
+        </div>
+        <div class="fm-group">
+          <div class="fm-label">Notes</div>
+          <textarea class="fm-input" id="res-notes" rows="2" placeholder="Post height, reflectivity, mounting..."></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="discardMeasurement()" style="flex:1;padding:12px;background:var(--bg);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:700">Discard</button>
+        <button onclick="saveMeasurement()" style="flex:2;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:800">💾 Save Sign</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="action-bar">
+    <button class="act-btn" id="btn-ar" onclick="startAR()" style="background:var(--accent);color:#000;">
+      <span class="icon">📐</span><span class="label">Start AR</span>
+    </button>
+    <button class="act-btn" onclick="capturePhoto()" style="background:var(--blue);color:#fff;">
+      <span class="icon">📷</span><span class="label">Photo</span>
+    </button>
+    <button class="act-btn" id="btn-measure-manual" onclick="startManualMeasure()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);">
+      <span class="icon">📏</span><span class="label">Manual</span>
+    </button>
+    <button class="act-btn" onclick="openSignLog()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);">
+      <span class="icon">📋</span><span class="label">Log</span>
+    </button>
+  </div>
+
+  <input type="file" id="photo-input" accept="image/*" style="display:none" multiple>
+</div>
+
+<!-- Sign Log Modal -->
+<div id="sign-log-modal">
+  <div class="log-header">
+    <div class="title">📋 Sign Log</div>
+    <span style="font-size:11px;color:var(--muted)" id="log-count">0</span>
+    <button class="top-btn" onclick="closeSignLog()">✕</button>
+  </div>
+  <div class="log-body" id="log-body"></div>
+</div>
+
+<!-- Datalists -->
+<datalist id="sign-types">
+  <option value="Speed Limit"><option value="Stop"><option value="Yield">
+  <option value="Street Name"><option value="No Parking"><option value="One Way">
+  <option value="Do Not Enter"><option value="Handicap Parking"><option value="School Zone">
+  <option value="Pedestrian Crossing"><option value="Railroad Crossing"><option value="Merge">
+  <option value="Lane Ends"><option value="Curve"><option value="No U-Turn">
+  <option value="Information"><option value="Guide"><option value="Warning">
+  <option value="Regulatory"><option value="Construction">
+</datalist>
+<datalist id="mutcd-codes">
+  <option value="R1-1 (Stop)"><option value="R1-2 (Yield)">
+  <option value="R2-1 (Speed Limit)"><option value="R3-1 (No Right Turn)">
+  <option value="R5-1 (Do Not Enter)"><option value="R7-1 (No Parking)">
+  <option value="R7-8 (Handicap Parking)"><option value="R6-1 (One Way)">
+  <option value="W1-1 (Turn)"><option value="W1-2 (Curve)">
+  <option value="W2-1 (Intersection)"><option value="W3-1 (Stop Ahead)">
+  <option value="W11-2 (Pedestrian)"><option value="D1-1 (Street Name)">
+  <option value="D3-1 (Guide)"><option value="S1-1 (School Zone)">
+</datalist>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   SignCapture — LiDAR Sign Measurement Tool
+   Uses WebXR AR + hit-testing on iPad/iPhone with LiDAR to
+   measure sign dimensions by tapping corners. Falls back to
+   manual photo + dimension entry on non-AR devices.
+   ═══════════════════════════════════════════════════════════ */
+
+var SIGNS=[];
+var _currentPhoto=null;
+var _currentThumb=null;
+var _arSession=null;
+var _arRefSpace=null;
+var _hitTestSource=null;
+var _measurePoints=[]; // [{x,y,z, screenX, screenY}]
+var _measureState='idle'; // idle | measuring-width | measuring-height | done
+var _lastWidth=null,_lastHeight=null,_lastDistance=null;
+var _cameraStream=null;
+
+// Persistence
+var LS_KEY='signcapture_v1';
+function save(){
+  try{
+    var clone=JSON.parse(JSON.stringify(SIGNS));
+    localStorage.setItem(LS_KEY,JSON.stringify(clone));
+  }catch(e){console.warn('Save failed:',e);}
+}
+function load(){
+  try{
+    var r=localStorage.getItem(LS_KEY);
+    if(r)SIGNS=JSON.parse(r);
+  }catch(e){}
+}
+
+// GPS
+var _lat=null,_lng=null;
+function startGPS(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.watchPosition(
+    function(p){_lat=p.coords.latitude;_lng=p.coords.longitude;},
+    function(){},
+    {enableHighAccuracy:true,maximumAge:5000,timeout:10000}
+  );
+}
+
+// Camera stream for preview (non-AR mode)
+async function startCamera(){
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}},
+      audio:false
+    });
+    _cameraStream=stream;
+    var vid=document.getElementById('cam-video');
+    vid.srcObject=stream;
+    vid.play();
+  }catch(e){
+    console.warn('Camera error:',e);
+  }
+}
+
+function stopCamera(){
+  if(_cameraStream){
+    _cameraStream.getTracks().forEach(function(t){t.stop();});
+    _cameraStream=null;
+  }
+}
+
+// ═══ WebXR AR + LiDAR Hit-Testing ═══
+
+function checkARSupport(){
+  if(!navigator.xr){
+    document.getElementById('btn-ar').style.display='none';
+    return false;
+  }
+  navigator.xr.isSessionSupported('immersive-ar').then(function(supported){
+    if(!supported){
+      document.getElementById('btn-ar').style.opacity='0.4';
+      document.getElementById('btn-ar').title='AR not supported on this device';
+    }
+  });
+  return true;
+}
+
+async function startAR(){
+  if(!navigator.xr){
+    showNoAr();return;
+  }
+
+  try{
+    // Request immersive AR with hit-test and DOM overlay
+    _arSession=await navigator.xr.requestSession('immersive-ar',{
+      requiredFeatures:['hit-test','local-floor'],
+      optionalFeatures:['dom-overlay','depth-sensing'],
+      domOverlay:{root:document.getElementById('main-area')},
+      depthSensing:{
+        usagePreference:['cpu-optimized'],
+        dataFormatPreference:['luminance-alpha']
+      }
+    });
+
+    _arRefSpace=await _arSession.requestReferenceSpace('local-floor');
+    var viewerSpace=await _arSession.requestReferenceSpace('viewer');
+
+    // Hit test source from the center of the screen
+    _hitTestSource=await _arSession.requestHitTestSource({space:viewerSpace});
+
+    _measurePoints=[];
+    _measureState='measuring-width';
+    updateInstruction('Tap the <b>LEFT</b> edge of the sign');
+
+    // Listen for tap (select) events
+    _arSession.addEventListener('select',onARSelect);
+    _arSession.addEventListener('end',function(){
+      _arSession=null;_hitTestSource=null;
+      document.getElementById('btn-ar').querySelector('.label').textContent='Start AR';
+      updateInstruction('AR session ended. Tap Start AR to resume.');
+    });
+
+    document.getElementById('btn-ar').querySelector('.label').textContent='AR Active';
+
+    // Start render loop (needed to keep the session alive and process hit tests)
+    _arSession.requestAnimationFrame(onARFrame);
+
+  }catch(e){
+    console.error('AR start failed:',e);
+    if(e.message&&e.message.indexOf('NotSupportedError')>=0){
+      showNoAr();
+    }else{
+      alert('Failed to start AR: '+e.message+'\n\nTry using Safari on an iPad Pro or iPhone Pro with LiDAR.');
+    }
+  }
+}
+
+function onARFrame(time,frame){
+  if(!_arSession)return;
+  _arSession.requestAnimationFrame(onARFrame);
+
+  // We could render a reticle here but since we're using DOM overlay,
+  // the camera passthrough + DOM elements handle the UI.
+}
+
+function onARSelect(event){
+  if(!_arSession||!_hitTestSource)return;
+
+  var frame=event.frame;
+  var results=frame.getHitTestResults(_hitTestSource);
+  if(!results||!results.length)return;
+
+  var pose=results[0].getPose(_arRefSpace);
+  if(!pose)return;
+
+  var p=pose.transform.position;
+  var pt={x:p.x,y:p.y,z:p.z};
+  _measurePoints.push(pt);
+
+  if(_measureState==='measuring-width'){
+    if(_measurePoints.length===1){
+      updateInstruction('Tap the <b>RIGHT</b> edge of the sign');
+    }
+    if(_measurePoints.length===2){
+      var w=dist3D(_measurePoints[0],_measurePoints[1]);
+      _lastWidth=w;
+      _measureState='measuring-height';
+      updateInstruction('Width: <b>'+formatDim(w)+'</b> — Now tap the <b>BOTTOM</b> edge');
+    }
+  }else if(_measureState==='measuring-height'){
+    if(_measurePoints.length===3){
+      var h=dist3D(_measurePoints[1],_measurePoints[2]);
+      _lastHeight=h;
+      // Distance from camera to sign center (average of all points)
+      var cx=(_measurePoints[0].x+_measurePoints[1].x+_measurePoints[2].x)/3;
+      var cy=(_measurePoints[0].y+_measurePoints[1].y+_measurePoints[2].y)/3;
+      var cz=(_measurePoints[0].z+_measurePoints[1].z+_measurePoints[2].z)/3;
+      _lastDistance=dist3D({x:0,y:0,z:0},{x:cx,y:cy,z:cz});
+      _measureState='done';
+
+      // End AR session and show results
+      endAR();
+      showResults();
+    }
+  }
+}
+
+function endAR(){
+  if(_arSession){
+    _arSession.end().catch(function(){});
+    _arSession=null;_hitTestSource=null;
+  }
+  document.getElementById('btn-ar').querySelector('.label').textContent='Start AR';
+}
+
+function dist3D(a,b){
+  return Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2+(b.z-a.z)**2);
+}
+
+function formatDim(meters){
+  var inches=meters*39.3701;
+  if(inches<60)return inches.toFixed(1)+' in ('+Math.round(inches/12*10)/10+' ft)';
+  return (inches/12).toFixed(1)+' ft ('+Math.round(inches)+' in)';
+}
+
+function updateInstruction(html){
+  document.getElementById('instruction-bar').innerHTML=html;
+}
+
+function showNoAr(){
+  document.getElementById('no-ar-panel').style.display='flex';
+}
+function closeNoAr(){
+  document.getElementById('no-ar-panel').style.display='none';
+}
+
+// ═══ Manual Measure (no AR — photo + user-entered dimensions) ═══
+
+function startManualMeasure(){
+  _measureState='done';
+  _lastWidth=null;_lastHeight=null;_lastDistance=null;
+  showResults();
+  updateInstruction('Manual mode — enter dimensions in the form below.');
+}
+
+// ═══ Photo Capture ═══
+
+function capturePhoto(){
+  // Capture from video stream if active, else use file picker
+  var vid=document.getElementById('cam-video');
+  if(vid.srcObject&&vid.videoWidth>0){
+    var cv=document.createElement('canvas');
+    cv.width=vid.videoWidth;cv.height=vid.videoHeight;
+    cv.getContext('2d').drawImage(vid,0,0);
+    _currentPhoto=cv.toDataURL('image/jpeg',0.85);
+
+    // Thumbnail
+    var tc=document.createElement('canvas');
+    var tw=480,th=Math.round(480*vid.videoHeight/vid.videoWidth);
+    tc.width=tw;tc.height=th;
+    tc.getContext('2d').drawImage(vid,0,0,tw,th);
+    _currentThumb=tc.toDataURL('image/jpeg',0.7);
+
+    updateInstruction('📷 Photo captured. Tap <b>📐 Start AR</b> to measure or <b>📏 Manual</b> to enter dimensions.');
+    return;
+  }
+
+  // Fallback: file picker
+  var inp=document.getElementById('photo-input');
+  inp.onchange=function(){
+    if(!inp.files||!inp.files.length)return;
+    var file=inp.files[0];
+    var reader=new FileReader();
+    reader.onload=function(e){
+      _currentPhoto=e.target.result;
+      // Make thumbnail
+      var img=new Image();
+      img.onload=function(){
+        var tc=document.createElement('canvas');
+        var tw=480,th=Math.round(480*img.height/img.width);
+        tc.width=tw;tc.height=th;
+        tc.getContext('2d').drawImage(img,0,0,tw,th);
+        _currentThumb=tc.toDataURL('image/jpeg',0.7);
+      };
+      img.src=e.target.result;
+      updateInstruction('📷 Photo loaded. Tap <b>📐 Start AR</b> or <b>📏 Manual</b>.');
+    };
+    reader.readAsDataURL(file);
+    inp.value='';
+  };
+  inp.click();
+}
+
+// ═══ Results ═══
+
+function showResults(){
+  var panel=document.getElementById('result-panel');
+  document.getElementById('res-width').textContent=_lastWidth?formatDim(_lastWidth):'— (enter manually)';
+  document.getElementById('res-height').textContent=_lastHeight?formatDim(_lastHeight):'— (enter manually)';
+  document.getElementById('res-distance').textContent=_lastDistance?((_lastDistance*3.281).toFixed(1)+' ft'):'—';
+
+  // Pre-fill manual fields if we have LiDAR data
+  if(_lastWidth)document.getElementById('res-manual-w').value=(_lastWidth*39.3701).toFixed(1);
+  if(_lastHeight)document.getElementById('res-manual-h').value=(_lastHeight*39.3701).toFixed(1);
+
+  // Clear other fields
+  document.getElementById('res-type').value='';
+  document.getElementById('res-mutcd').value='';
+  document.getElementById('res-condition').value='';
+  document.getElementById('res-notes').value='';
+
+  panel.classList.add('open');
+}
+
+function discardMeasurement(){
+  document.getElementById('result-panel').classList.remove('open');
+  _measurePoints=[];_measureState='idle';
+  _lastWidth=null;_lastHeight=null;_lastDistance=null;
+  updateInstruction('Measurement discarded. Tap <b>Start AR</b> or <b>📷 Photo</b>.');
+}
+
+function saveMeasurement(){
+  var widthIn=parseFloat(document.getElementById('res-manual-w').value)||(_lastWidth?_lastWidth*39.3701:null);
+  var heightIn=parseFloat(document.getElementById('res-manual-h').value)||(_lastHeight?_lastHeight*39.3701:null);
+
+  var sign={
+    id:'sg'+Date.now()+Math.random().toString(36).slice(2,5),
+    type:document.getElementById('res-type').value||'Unknown',
+    mutcd:document.getElementById('res-mutcd').value||'',
+    condition:document.getElementById('res-condition').value||'',
+    widthIn:widthIn?Math.round(widthIn*10)/10:null,
+    heightIn:heightIn?Math.round(heightIn*10)/10:null,
+    distanceFt:_lastDistance?Math.round(_lastDistance*3.281*10)/10:null,
+    source:_lastWidth?'LiDAR':'Manual',
+    notes:document.getElementById('res-notes').value||'',
+    lat:_lat?+_lat.toFixed(6):null,
+    lng:_lng?+_lng.toFixed(6):null,
+    thumb:_currentThumb||null,
+    photo:_currentPhoto||null,
+    ts:new Date().toISOString()
+  };
+
+  SIGNS.push(sign);
+  save();
+  updateSignCount();
+
+  document.getElementById('result-panel').classList.remove('open');
+  _measurePoints=[];_measureState='idle';
+  _lastWidth=null;_lastHeight=null;_lastDistance=null;
+  _currentPhoto=null;_currentThumb=null;
+
+  updateInstruction('✓ Sign saved ('+sign.type+(sign.widthIn?' — '+sign.widthIn+'" × '+sign.heightIn+'"':'')+')');
+}
+
+// ═══ Sign Log ═══
+
+function updateSignCount(){
+  document.getElementById('sign-count').textContent=SIGNS.length+' sign'+(SIGNS.length!==1?'s':'');
+}
+
+function openSignLog(){
+  renderSignLog();
+  document.getElementById('sign-log-modal').classList.add('open');
+}
+function closeSignLog(){
+  document.getElementById('sign-log-modal').classList.remove('open');
+}
+
+function renderSignLog(){
+  var body=document.getElementById('log-body');
+  document.getElementById('log-count').textContent=SIGNS.length+' sign'+(SIGNS.length!==1?'s':'');
+  if(!SIGNS.length){
+    body.innerHTML='<div style="text-align:center;padding:32px;color:var(--muted)">No signs captured yet.</div>';
+    return;
+  }
+  body.innerHTML=SIGNS.slice().reverse().map(function(s){
+    var dims=s.widthIn&&s.heightIn?(s.widthIn+'" × '+s.heightIn+'"'):'No size';
+    var h='<div class="sign-card">';
+    if(s.thumb)h+='<img src="'+s.thumb+'">';
+    h+='<div class="sc-body">';
+    h+='<div class="sc-title">'+esc(s.type||'Sign')+(s.mutcd?' · '+esc(s.mutcd):'')+'</div>';
+    h+='<div class="sc-size">'+dims+(s.source==='LiDAR'?' (LiDAR)':' (Manual)')+'</div>';
+    h+='<div class="sc-meta">';
+    if(s.condition)h+=esc(s.condition)+' · ';
+    if(s.distanceFt)h+=s.distanceFt+' ft away · ';
+    if(s.lat)h+=s.lat+', '+s.lng+' · ';
+    h+=new Date(s.ts).toLocaleString();
+    h+='</div>';
+    if(s.notes)h+='<div class="sc-meta" style="font-style:italic;margin-top:2px">'+esc(s.notes)+'</div>';
+    h+='</div></div>';
+    return h;
+  }).join('');
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ═══ Export ═══
+
+function exportSigns(){
+  if(!SIGNS.length){alert('No signs to export');return;}
+
+  var data={
+    exportDate:new Date().toISOString(),
+    signs:SIGNS.map(function(s){
+      var c=Object.assign({},s);delete c.photo;delete c.thumb;
+      return c;
+    }),
+    summary:{
+      total:SIGNS.length,
+      withLiDAR:SIGNS.filter(function(s){return s.source==='LiDAR';}).length,
+      withGPS:SIGNS.filter(function(s){return s.lat;}).length,
+      conditions:{}
+    }
+  };
+  SIGNS.forEach(function(s){
+    if(s.condition){
+      data.summary.conditions[s.condition]=(data.summary.conditions[s.condition]||0)+1;
+    }
+  });
+
+  var json=JSON.stringify(data,null,2);
+  dl(json,'signcapture_'+dateStamp()+'.json','application/json');
+
+  var csv='ID,Type,MUTCD,Condition,Width (in),Height (in),Distance (ft),Source,Lat,Lng,Notes,Timestamp\n';
+  SIGNS.forEach(function(s){
+    csv+=[s.id,q(s.type),q(s.mutcd),q(s.condition),s.widthIn||'',s.heightIn||'',s.distanceFt||'',s.source,s.lat||'',s.lng||'',q(s.notes),s.ts].join(',')+'\n';
+  });
+  setTimeout(function(){dl(csv,'signcapture_'+dateStamp()+'.csv','text/csv');},300);
+}
+
+function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
+function dateStamp(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dl(content,name,type){
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:type}));
+  a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},200);
+}
+
+// ═══ Init ═══
+load();
+updateSignCount();
+checkARSupport();
+startGPS();
+startCamera();
+</script>
+</body>
+</html>
