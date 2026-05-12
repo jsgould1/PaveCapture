@@ -143,7 +143,7 @@ select,input,textarea{font-size:16px !important;}
       <span id="connect-icon">🔗</span>
       <span id="connect-label">Connect DISTO</span>
     </button>
-    <span id="connect-status">Not connected</span>
+    <span id="connect-status">Not connected — disconnect DISTO from Windows Bluetooth first</span>
     <span id="battery-indicator"></span>
   </div>
 
@@ -152,6 +152,7 @@ select,input,textarea{font-size:16px !important;}
       <div class="es-icon">📏</div>
       <h3>Ready to Measure</h3>
       <p>Connect your Leica DISTO X3 via Bluetooth, or enter measurements manually below.<br><br>
+      <b style="color:var(--red)">Important:</b> Disconnect the DISTO from Windows Bluetooth settings first — Windows locks the connection and prevents the web page from seeing it.<br><br>
       Tag measurements as <b style="color:var(--blue)">A</b> (pavement) and <b style="color:var(--accent)">B</b> (shoulder) to compute edge drop-off automatically.</p>
     </div>
     <div id="log-rows"></div>
@@ -250,12 +251,24 @@ async function connectDisto(){
 
   updateConnectUI('connecting','Scanning…');
   dbg('Requesting Bluetooth device…');
+  dbg('TIP: If DISTO does not appear, disconnect it from Windows Bluetooth settings first.');
 
   try{
-    _device=await navigator.bluetooth.requestDevice({
-      acceptAllDevices:true,
-      optionalServices:DISTO_UUIDS.services
-    });
+    // Try name-filtered scan first (cleaner picker), fall back to all devices
+    try{
+      _device=await navigator.bluetooth.requestDevice({
+        filters:[{namePrefix:'DISTO'},{namePrefix:'Leica'},{namePrefix:'disto'}],
+        optionalServices:DISTO_UUIDS.services
+      });
+    }catch(filterErr){
+      if(filterErr.name==='NotFoundError'){
+        dbg('No "DISTO"/"Leica" devices found by name. Showing all BLE devices…');
+        _device=await navigator.bluetooth.requestDevice({
+          acceptAllDevices:true,
+          optionalServices:DISTO_UUIDS.services
+        });
+      }else{throw filterErr;}
+    }
 
     dbg('Device selected: '+_device.name+' (ID: '+_device.id+')');
     _device.addEventListener('gattserverdisconnected',onDisconnected);
