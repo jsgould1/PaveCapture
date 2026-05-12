@@ -90,12 +90,12 @@ select,input,textarea{font-size:16px !important;}
       <div class="es-icon">📏</div>
       <h3>Ready to Measure</h3>
       <p><b style="color:var(--green)">BLE Direct Mode:</b><br>
-      1. <b style="color:var(--red)">Remove</b> the DISTO from Windows Bluetooth settings (unpair it)<br>
-      2. Turn on Bluetooth on the DISTO<br>
-      3. Tap <b>🔗 Connect DISTO</b> above — pick it from the browser's list<br>
-      4. Once connected, tap <b style="color:var(--red)">🎯 SHOOT</b> to trigger the laser remotely<br>
-      5. Measurement auto-logs<br><br>
-      Or enter values manually below. Tap <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> to pre-tag for drop-off calc.</p>
+      1. <b style="color:var(--red)">Remove</b> the DISTO from Windows Bluetooth settings<br>
+      2. Turn on Bluetooth on the DISTO (App mode, not Keyboard)<br>
+      3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
+      4. If Chrome shows a pairing prompt, <b>accept it</b><br>
+      5. Once connected, tap <b style="color:var(--red)">🎯 SHOOT</b> or press measure on DISTO<br><br>
+      Manual entry also works below. <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> pre-tags for drop-off.</p>
     </div>
     <div id="log-rows"></div>
   </div>
@@ -131,7 +131,6 @@ var _device=null,_server=null,_cmdChar=null,_connected=false;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
 var DISTO_DIST='3ab10101-f831-4395-b29d-570977d5bf94';
-var DISTO_UNITS='3ab10102-f831-4395-b29d-570977d5bf94';
 var DISTO_CMD='3ab10109-f831-4395-b29d-570977d5bf94';
 var TRIGGER_CMD=0x67;
 var LS='distologger_v1';
@@ -140,41 +139,54 @@ function load(){try{var r=localStorage.getItem(LS);if(r){var d=JSON.parse(r);MEA
 function startGPS(){if(!navigator.geolocation)return;navigator.geolocation.watchPosition(function(p){_lat=p.coords.latitude;_lng=p.coords.longitude;},function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});}
 async function toggleConnection(){if(_connected){disconnect();return;}await connectDisto();}
 async function connectDisto(){
-  if(!navigator.bluetooth){alert('Web Bluetooth not available.\nUse Chrome or Edge on Windows.');return;}
+  if(!navigator.bluetooth){alert('Use Chrome or Edge on Windows.');return;}
   updateConnectUI('connecting','Scanning…');
-  dbg('Requesting DISTO device…');
-  dbg('IMPORTANT: The DISTO must NOT be paired via Windows Bluetooth.');
+  dbg('Requesting DISTO…');
+  dbg('IMPORTANT: DISTO must NOT be paired via Windows Bluetooth.');
   try{
     _device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'DISTO'},{namePrefix:'Leica'},{namePrefix:'disto'}],optionalServices:[DISTO_SVC,'0000180a-0000-1000-8000-00805f9b34fb','0000180f-0000-1000-8000-00805f9b34fb']});
-    dbg('Selected: '+_device.name+' ('+_device.id+')');
+    dbg('Selected: '+_device.name);
     _device.addEventListener('gattserverdisconnected',onDisconnected);
     updateConnectUI('connecting','Connecting…');
     _server=await _device.gatt.connect();
     dbg('GATT connected');
-    dbg('Looking for Leica service '+DISTO_SVC+'…');
     var svc;
-    try{svc=await _server.getPrimaryService(DISTO_SVC);dbg('✓ Leica measurement service found!');}catch(e){
+    try{svc=await _server.getPrimaryService(DISTO_SVC);dbg('✓ Leica service found!');}catch(e){
       dbg('✕ Leica service NOT found: '+e.message);
-      dbg('The DISTO may be paired with Windows. Remove it from Windows Bluetooth, restart DISTO, try again.');
-      try{var allSvc=await _server.getPrimaryServices();dbg('Available services ('+allSvc.length+'):');for(var i=0;i<allSvc.length;i++){dbg('  '+allSvc[i].uuid);try{var chars=await allSvc[i].getCharacteristics();for(var j=0;j<chars.length;j++){var p=chars[j].properties;var fl=[];if(p.read)fl.push('R');if(p.write)fl.push('W');if(p.writeWithoutResponse)fl.push('Wn');if(p.notify)fl.push('N');if(p.indicate)fl.push('I');dbg('    '+chars[j].uuid+' ['+fl.join(',')+']');}}catch(ce){dbg('    (chars error: '+ce.message+')');}}}catch(se){dbg('Enum error: '+se.message);}
-      updateConnectUI('disconnected','Leica service not found — see debug');return;
+      try{var allSvc=await _server.getPrimaryServices();dbg('Services ('+allSvc.length+'):');for(var i=0;i<allSvc.length;i++){dbg('  '+allSvc[i].uuid);try{var chars=await allSvc[i].getCharacteristics();for(var j=0;j<chars.length;j++){var p=chars[j].properties;var fl=[];if(p.read)fl.push('R');if(p.write)fl.push('W');if(p.writeWithoutResponse)fl.push('Wn');if(p.notify)fl.push('N');if(p.indicate)fl.push('I');dbg('    '+chars[j].uuid+' ['+fl.join(',')+']');}}catch(ce){}}}catch(se){}
+      updateConnectUI('disconnected','Leica service not found');return;
     }
-    try{var measChar=await svc.getCharacteristic(DISTO_MEAS);await measChar.startNotifications();measChar.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Subscribed to measurement notifications');}catch(e){dbg('✕ Measurement char: '+e.message);}
-    try{var distChar=await svc.getCharacteristic(DISTO_DIST);await distChar.startNotifications();distChar.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Subscribed to distance value');}catch(e){dbg('  Distance char: '+e.message);}
-    try{_cmdChar=await svc.getCharacteristic(DISTO_CMD);dbg('✓ Command char ready — remote trigger available!');document.getElementById('shoot-btn').classList.add('ready');}catch(e){dbg('✕ Command char: '+e.message);_cmdChar=null;}
+    dbg('Enumerating characteristics…');
+    var allChars=[];
+    try{
+      allChars=await svc.getCharacteristics();
+      dbg('Found '+allChars.length+' characteristics:');
+      for(var ci=0;ci<allChars.length;ci++){var ch=allChars[ci];var pr=ch.properties;var flags=[];if(pr.read)flags.push('R');if(pr.write)flags.push('W');if(pr.writeWithoutResponse)flags.push('Wn');if(pr.notify)flags.push('N');if(pr.indicate)flags.push('I');dbg('  '+ch.uuid+' ['+flags.join(',')+']');}
+    }catch(enumErr){dbg('Enum error: '+enumErr.message);}
+    dbg('Attempting bonding (reading characteristics)…');
+    for(var bi=0;bi<allChars.length;bi++){if(allChars[bi].properties.read){try{var rv=await allChars[bi].readValue();dbg('  Read '+allChars[bi].uuid+': '+dataViewToHex(rv)+' ('+rv.byteLength+'B)');}catch(re){dbg('  Read '+allChars[bi].uuid+': '+re.message);}}}
+    dbg('Re-enumerating after bonding…');
+    try{allChars=await svc.getCharacteristics();dbg('Now '+allChars.length+' characteristics:');for(var ci2=0;ci2<allChars.length;ci2++){var ch2=allChars[ci2];var pr2=ch2.properties;var fl2=[];if(pr2.read)fl2.push('R');if(pr2.write)fl2.push('W');if(pr2.writeWithoutResponse)fl2.push('Wn');if(pr2.notify)fl2.push('N');if(pr2.indicate)fl2.push('I');dbg('  '+ch2.uuid+' ['+fl2.join(',')+']');}}catch(e2){}
+    var subscribed=false;
+    for(var si=0;si<allChars.length;si++){var sc=allChars[si];if(sc.properties.notify||sc.properties.indicate){try{await sc.startNotifications();sc.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Subscribed '+sc.uuid);subscribed=true;}catch(se){dbg('  Sub '+sc.uuid+': '+se.message);}}}
+    if(!subscribed)dbg('⚠ No subscriptions succeeded');
+    _cmdChar=null;
+    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse){_cmdChar=allChars[wi];dbg('✓ Write char: '+_cmdChar.uuid+' — SHOOT available!');document.getElementById('shoot-btn').classList.add('ready');break;}if(allChars[wi].properties.write&&!_cmdChar){_cmdChar=allChars[wi];dbg('✓ Write char (resp): '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');}}
+    if(!_cmdChar)dbg('⚠ No writable char — remote trigger unavailable');
     try{var batSvc=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var batChar=await batSvc.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var batVal=await batChar.readValue();dbg('Battery: '+batVal.getUint8(0)+'%');}catch(e){}
     _connected=true;
-    updateConnectUI('connected','Connected — '+(_cmdChar?'tap 🎯 SHOOT or press measure on DISTO':'press measure on DISTO'));
+    updateConnectUI('connected','Connected — '+(_cmdChar?'tap 🎯 SHOOT or press measure':'press measure on DISTO'));
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
 function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
 function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
-async function shootDisto(){if(!_cmdChar){alert('Command not available');return;}dbg('Trigger (0x'+TRIGGER_CMD.toString(16)+')…');try{await _cmdChar.writeValueWithoutResponse(new Uint8Array([TRIGGER_CMD]));dbg('✓ Trigger sent');}catch(e){dbg('✕ Trigger failed: '+e.message);}}
+async function shootDisto(){if(!_cmdChar){alert('No command char');return;}dbg('Sending 0x'+TRIGGER_CMD.toString(16)+' to '+_cmdChar.uuid+'…');try{if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array([TRIGGER_CMD]));else await _cmdChar.writeValueWithResponse(new Uint8Array([TRIGGER_CMD]));dbg('✓ Trigger sent');}catch(e){dbg('✕ Trigger failed: '+e.message);}}
 function onMeasurement(event){
   var raw=event.target.value;
-  dbg('Data ('+raw.byteLength+'B): '+dataViewToHex(raw));
+  dbg('Data from '+event.target.uuid+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');addMeasurement(dist,'m','DISTO BLE');return;}}
-  dbg('Parse failed. Raw: '+dataViewToHex(raw));
+  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm ('+(mm/304.8).toFixed(3)+' ft)');addMeasurement(mm,'mm','DISTO BLE');return;}}
+  dbg('Could not parse. Raw: '+dataViewToHex(raw));
 }
 function dataViewToHex(dv){var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));return h.join(' ');}
 function updateConnectUI(state,text){var btn=document.getElementById('connect-btn');btn.className=state;document.getElementById('connect-icon').textContent=state==='connected'?'✓':state==='connecting'?'⏳':'🔗';document.getElementById('connect-label').textContent=state==='connected'?'Connected':state==='connecting'?'Connecting…':'Connect DISTO';document.getElementById('connect-status').textContent=text;}
@@ -229,9 +241,7 @@ function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
 function ds(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function dl(c,n,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}
 load();renderLog();updateCalc();startGPS();
-dbg('DISTO Logger ready — BLE direct mode with remote trigger.');
-dbg('Service: '+DISTO_SVC);
-dbg('Trigger: 0x'+TRIGGER_CMD.toString(16)+' ("g")');
+dbg('DISTO Logger ready — BLE direct with bonding + remote trigger.');
 </script>
 </body>
 </html>
