@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DISTO Logger — Leica Measurement Tool</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#f1f5f9;
+  --muted:#94a3b8;--accent:#f59e0b;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;}
+select,input,textarea{font-size:16px !important;}
+
+#app{display:flex;flex-direction:column;height:100vh;max-width:900px;margin:0 auto;}
+
+#top-bar{
+  background:var(--surface);padding:10px 16px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.brand{font-weight:800;font-size:18px;color:var(--accent);}
+.brand span{color:var(--text);font-weight:400;font-size:12px;margin-left:6px;}
+.top-spacer{flex:1;}
+.top-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+}
+.top-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+#connect-bar{
+  background:var(--surface);padding:10px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;
+}
+#connect-btn{
+  padding:10px 20px;border-radius:10px;border:none;font-size:14px;font-weight:800;
+  cursor:pointer;display:flex;align-items:center;gap:8px;
+}
+#connect-btn.disconnected{background:var(--blue);color:#fff;}
+#connect-btn.connecting{background:var(--accent);color:#000;}
+#connect-btn.connected{background:var(--green);color:#000;}
+#connect-status{font-size:12px;color:var(--muted);font-weight:600;}
+#battery-indicator{font-size:12px;color:var(--green);font-weight:700;margin-left:auto;}
+
+#log-area{flex:1;overflow-y:auto;padding:16px;}
+
+#empty-state{text-align:center;padding:48px 24px;color:var(--muted);}
+#empty-state .es-icon{font-size:56px;margin-bottom:12px;}
+#empty-state h3{font-size:18px;color:var(--accent);font-weight:800;margin-bottom:8px;}
+#empty-state p{font-size:13px;line-height:1.6;max-width:400px;margin:0 auto;}
+
+.meas-row{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+}
+.meas-row.tagged{border-color:var(--accent);}
+.meas-row .mr-num{
+  background:var(--bg);color:var(--accent);border:1px solid var(--accent);
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;
+}
+.meas-row .mr-body{flex:1;min-width:0;}
+.meas-row .mr-value{font-size:22px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;}
+.meas-row .mr-value .unit{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px;}
+.meas-row .mr-meta{font-size:10px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
+.meas-row .mr-label{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:4px 8px;font-size:11px;color:var(--text);width:140px;min-width:0;
+}
+.meas-row .mr-label:focus{border-color:var(--accent);}
+.meas-row .mr-tag{
+  padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg);color:var(--muted);
+}
+.meas-row .mr-tag.a{background:rgba(59,130,246,.2);color:var(--blue);border-color:var(--blue);}
+.meas-row .mr-tag.b{background:rgba(245,158,11,.2);color:var(--accent);border-color:var(--accent);}
+.meas-row .mr-del{
+  background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;
+  padding:4px 8px;flex-shrink:0;
+}
+.meas-row .mr-del:hover{color:var(--red);}
+
+#calc-panel{
+  background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;
+  flex-shrink:0;
+}
+#calc-panel h4{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.calc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.calc-val{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:16px;font-weight:800;color:var(--text);min-width:80px;
+  text-align:center;font-variant-numeric:tabular-nums;
+}
+.calc-val.a{border-color:var(--blue);color:var(--blue);}
+.calc-val.b{border-color:var(--accent);color:var(--accent);}
+.calc-op{font-size:18px;font-weight:900;color:var(--muted);}
+.calc-result{
+  background:var(--green);color:#000;border-radius:8px;padding:8px 14px;
+  font-size:16px;font-weight:900;min-width:100px;text-align:center;
+}
+.calc-label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px;}
+
+#bottom-bar{
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:10px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;
+}
+#manual-input{
+  flex:1;min-width:120px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;
+}
+#manual-input:focus{border-color:var(--accent);outline:none;}
+#manual-unit{
+  padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:14px;min-width:60px;
+}
+.bottom-btn{
+  padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:800;
+  cursor:pointer;
+}
+
+#debug-panel{
+  display:none;background:var(--bg);border-top:1px solid var(--border);
+  padding:10px 16px;max-height:200px;overflow-y:auto;flex-shrink:0;
+}
+#debug-panel.show{display:block;}
+#debug-log{font-family:'Cascadia Code','Consolas',monospace;font-size:11px;color:var(--muted);white-space:pre-wrap;line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top-bar">
+    <div class="brand">DISTO Logger<span>Leica X3</span></div>
+    <div class="top-spacer"></div>
+    <span id="meas-count" style="font-size:12px;color:var(--accent);font-weight:800">0</span>
+    <button class="top-btn" onclick="toggleDebug()">🔧 Debug</button>
+    <button class="top-btn" onclick="exportLog()">📤 Export</button>
+    <button class="top-btn" onclick="clearLog()">🗑</button>
+  </div>
+
+  <div id="connect-bar">
+    <button id="connect-btn" class="disconnected" onclick="toggleConnection()">
+      <span id="connect-icon">🔗</span>
+      <span id="connect-label">Connect DISTO</span>
+    </button>
+    <span id="connect-status">Not connected</span>
+    <span id="battery-indicator"></span>
+  </div>
+
+  <div id="log-area">
+    <div id="empty-state">
+      <div class="es-icon">📏</div>
+      <h3>Ready to Measure</h3>
+      <p>Connect your Leica DISTO X3 via Bluetooth, or enter measurements manually below.<br><br>
+      Tag measurements as <b style="color:var(--blue)">A</b> (pavement) and <b style="color:var(--accent)">B</b> (shoulder) to compute edge drop-off automatically.</p>
+    </div>
+    <div id="log-rows"></div>
+  </div>
+
+  <div id="calc-panel" style="display:none">
+    <h4>📐 Edge Drop-Off Calculation (A − B)</h4>
+    <div class="calc-row">
+      <div>
+        <div class="calc-val a" id="calc-a">—</div>
+        <div class="calc-label">A: Pavement</div>
+      </div>
+      <div class="calc-op">−</div>
+      <div>
+        <div class="calc-val b" id="calc-b">—</div>
+        <div class="calc-label">B: Shoulder</div>
+      </div>
+      <div class="calc-op">=</div>
+      <div>
+        <div class="calc-result" id="calc-result">—</div>
+        <div class="calc-label">Drop-Off</div>
+      </div>
+      <div style="margin-left:auto">
+        <button onclick="saveCalcAsRow()" class="bottom-btn" style="background:var(--green);color:#000;font-size:11px;padding:8px 12px">💾 Log Result</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom-bar">
+    <input type="number" id="manual-input" placeholder="Manual entry…" step="any" inputmode="decimal"
+           onkeydown="if(event.key==='Enter')addManual()">
+    <select id="manual-unit">
+      <option value="ft">ft</option>
+      <option value="in">in</option>
+      <option value="m">m</option>
+      <option value="mm">mm</option>
+    </select>
+    <button class="bottom-btn" onclick="addManual()" style="background:var(--accent);color:#000;">+ Add</button>
+    <button class="bottom-btn" onclick="tagLastA()" style="background:rgba(59,130,246,.2);color:var(--blue);border:1px solid var(--blue);">Tag A</button>
+    <button class="bottom-btn" onclick="tagLastB()" style="background:rgba(245,158,11,.2);color:var(--accent);border:1px solid var(--accent);">Tag B</button>
+  </div>
+</div>
+
+<div id="debug-panel">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-size:12px;font-weight:800;color:var(--accent)">🔧 BLE Debug Log</span>
+    <button onclick="document.getElementById('debug-log').textContent=''" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">Clear</button>
+  </div>
+  <div id="debug-log"></div>
+</div>
+
+<script>
+var MEAS=[];
+var _device=null,_server=null,_char=null;
+var _connected=false;
+var _lat=null,_lng=null;
+var _nextNum=1;
+
+var DISTO_UUIDS={
+  services:[
+    '3ab10100-f831-4395-b29d-570977d5adf8',
+    '0000fff0-0000-1000-8000-00805f9b34fb',
+    '00001800-0000-1000-8000-00805f9b34fb',
+    '00001801-0000-1000-8000-00805f9b34fb',
+  ],
+  notifyChars:[
+    '3ab10101-f831-4395-b29d-570977d5adf8',
+    '3ab10102-f831-4395-b29d-570977d5adf8',
+    '0000fff1-0000-1000-8000-00805f9b34fb',
+    '0000fff2-0000-1000-8000-00805f9b34fb',
+  ]
+};
+
+var LS='distologger_v1';
+function save(){try{localStorage.setItem(LS,JSON.stringify({meas:MEAS,nextNum:_nextNum}));}catch(e){}}
+function load(){try{var r=localStorage.getItem(LS);if(r){var d=JSON.parse(r);MEAS=d.meas||[];_nextNum=d.nextNum||MEAS.length+1;}}catch(e){}}
+
+function startGPS(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.watchPosition(
+    function(p){_lat=p.coords.latitude;_lng=p.coords.longitude;},
+    function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000}
+  );
+}
+
+async function toggleConnection(){
+  if(_connected){disconnect();return;}
+  await connectDisto();
+}
+
+async function connectDisto(){
+  if(!navigator.bluetooth){
+    alert('Web Bluetooth is not available.\n\nUse Chrome or Edge on Windows.\nSafari and Firefox do not support Web Bluetooth.');
+    return;
+  }
+
+  updateConnectUI('connecting','Scanning…');
+  dbg('Requesting Bluetooth device…');
+
+  try{
+    _device=await navigator.bluetooth.requestDevice({
+      acceptAllDevices:true,
+      optionalServices:DISTO_UUIDS.services
+    });
+
+    dbg('Device selected: '+_device.name+' (ID: '+_device.id+')');
+    _device.addEventListener('gattserverdisconnected',onDisconnected);
+
+    updateConnectUI('connecting','Connecting to '+(_device.name||'device')+'…');
+    _server=await _device.gatt.connect();
+    dbg('GATT server connected');
+
+    var services=await _server.getPrimaryServices();
+    dbg('Found '+services.length+' services');
+
+    var subscribed=false;
+
+    for(var si=0;si<services.length;si++){
+      var svc=services[si];
+      dbg('  Service: '+svc.uuid);
+      try{
+        var chars=await svc.getCharacteristics();
+        for(var ci=0;ci<chars.length;ci++){
+          var ch=chars[ci];
+          var props=ch.properties;
+          var propStr=[];
+          if(props.read)propStr.push('read');
+          if(props.write)propStr.push('write');
+          if(props.notify)propStr.push('notify');
+          if(props.indicate)propStr.push('indicate');
+          dbg('    Char: '+ch.uuid+' ['+propStr.join(',')+']');
+
+          if(props.notify||props.indicate){
+            try{
+              await ch.startNotifications();
+              ch.addEventListener('characteristicvaluechanged',onMeasurement);
+              dbg('    ✓ Subscribed to notifications on '+ch.uuid);
+              subscribed=true;
+            }catch(ne){
+              dbg('    ✕ Failed to subscribe: '+ne.message);
+            }
+          }
+        }
+      }catch(ce){
+        dbg('  ✕ Could not read characteristics: '+ce.message);
+      }
+    }
+
+    if(!subscribed){
+      dbg('⚠ No notification characteristics found. Measurements may need manual entry.');
+    }
+
+    _connected=true;
+    updateConnectUI('connected','Connected to '+(_device.name||'DISTO'));
+
+  }catch(e){
+    dbg('Connection failed: '+e.message);
+    if(e.name==='NotFoundError'){
+      updateConnectUI('disconnected','Cancelled — no device selected');
+    }else{
+      updateConnectUI('disconnected','Failed: '+e.message);
+    }
+  }
+}
+
+function disconnect(){
+  if(_device&&_device.gatt&&_device.gatt.connected){_device.gatt.disconnect();}
+  _connected=false;_server=null;_char=null;
+  updateConnectUI('disconnected','Disconnected');
+  dbg('Disconnected');
+}
+
+function onDisconnected(){
+  _connected=false;_server=null;_char=null;
+  updateConnectUI('disconnected','Connection lost — tap to reconnect');
+  dbg('Device disconnected');
+}
+
+function onMeasurement(event){
+  var raw=event.target.value;
+  dbg('Measurement received — '+raw.byteLength+' bytes: '+dataViewToHex(raw));
+  var meters=parseMeasurement(raw);
+  if(meters!==null){
+    addMeasurement(meters,'m','DISTO');
+  }else{
+    dbg('Could not parse measurement. Raw hex: '+dataViewToHex(raw));
+  }
+}
+
+function parseMeasurement(dataView){
+  var bytes=dataView.byteLength;
+  if(bytes>=4){
+    var f=dataView.getFloat32(0,true);
+    if(f>0.01&&f<200){dbg('Parsed as float32 LE: '+f.toFixed(4)+' m');return f;}
+    f=dataView.getFloat32(0,false);
+    if(f>0.01&&f<200){dbg('Parsed as float32 BE: '+f.toFixed(4)+' m');return f;}
+  }
+  if(bytes>=4){
+    var mm=dataView.getInt32(0,true);
+    if(mm>10&&mm<200000){dbg('Parsed as int32 mm LE: '+mm+' mm');return mm/1000;}
+  }
+  if(bytes>=2){
+    var mm2=dataView.getUint16(0,true);
+    if(mm2>10&&mm2<60000){dbg('Parsed as uint16 mm LE: '+mm2+' mm');return mm2/1000;}
+  }
+  try{
+    var str='';for(var i=0;i<bytes;i++)str+=String.fromCharCode(dataView.getUint8(i));
+    var num=parseFloat(str.replace(/[^0-9.\-]/g,''));
+    if(!isNaN(num)&&num>0&&num<200){dbg('Parsed as ASCII: '+num+' m');return num;}
+  }catch(e){}
+  return null;
+}
+
+function dataViewToHex(dv){
+  var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));
+  return h.join(' ');
+}
+
+function updateConnectUI(state,text){
+  var btn=document.getElementById('connect-btn');
+  var status=document.getElementById('connect-status');
+  btn.className=state;
+  if(state==='disconnected'){
+    document.getElementById('connect-icon').textContent='🔗';
+    document.getElementById('connect-label').textContent='Connect DISTO';
+  }else if(state==='connecting'){
+    document.getElementById('connect-icon').textContent='⏳';
+    document.getElementById('connect-label').textContent='Connecting…';
+  }else{
+    document.getElementById('connect-icon').textContent='✓';
+    document.getElementById('connect-label').textContent='Connected';
+  }
+  status.textContent=text;
+}
+
+function addMeasurement(value,unit,source){
+  var m={
+    id:'m'+Date.now()+Math.random().toString(36).slice(2,5),
+    num:_nextNum++,
+    value:value,unit:unit||'m',label:'',tag:'',
+    lat:_lat?+_lat.toFixed(6):null,
+    lng:_lng?+_lng.toFixed(6):null,
+    source:source||'Manual',
+    ts:new Date().toISOString()
+  };
+  MEAS.push(m);save();renderLog();updateCalc();
+  var area=document.getElementById('log-area');
+  setTimeout(function(){area.scrollTop=area.scrollHeight;},50);
+}
+
+function addManual(){
+  var inp=document.getElementById('manual-input');
+  var val=parseFloat(inp.value);
+  if(isNaN(val)){alert('Enter a number');return;}
+  var unit=document.getElementById('manual-unit').value;
+  addMeasurement(val,unit,'Manual');
+  inp.value='';inp.focus();
+}
+
+function tagLastA(){
+  if(!MEAS.length)return;
+  MEAS.forEach(function(m){if(m.tag==='a')m.tag='';});
+  MEAS[MEAS.length-1].tag='a';
+  save();renderLog();updateCalc();
+}
+function tagLastB(){
+  if(!MEAS.length)return;
+  MEAS.forEach(function(m){if(m.tag==='b')m.tag='';});
+  MEAS[MEAS.length-1].tag='b';
+  save();renderLog();updateCalc();
+}
+
+function tagRow(id,tag){
+  MEAS.forEach(function(m){if(m.tag===tag)m.tag='';});
+  var m=MEAS.find(function(x){return x.id===id;});
+  if(m)m.tag=tag;
+  save();renderLog();updateCalc();
+}
+
+function deleteRow(id){
+  MEAS=MEAS.filter(function(x){return x.id!==id;});
+  save();renderLog();updateCalc();
+}
+
+function updateLabel(id,val){
+  var m=MEAS.find(function(x){return x.id===id;});
+  if(m){m.label=val;save();}
+}
+
+function toInches(val,unit){
+  if(unit==='in')return val;
+  if(unit==='ft')return val*12;
+  if(unit==='m')return val*39.3701;
+  if(unit==='mm')return val/25.4;
+  return val;
+}
+
+function renderLog(){
+  var rows=document.getElementById('log-rows');
+  var empty=document.getElementById('empty-state');
+  document.getElementById('meas-count').textContent=MEAS.length+' meas';
+  if(!MEAS.length){empty.style.display='block';rows.innerHTML='';return;}
+  empty.style.display='none';
+  rows.innerHTML=MEAS.map(function(m){
+    var tagCls=(m.tag==='a'||m.tag==='b')?' tagged':'';
+    var h='<div class="meas-row'+tagCls+'" data-id="'+m.id+'">';
+    h+='<div class="mr-num">'+m.num+'</div>';
+    h+='<div class="mr-body">';
+    h+='<div class="mr-value">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
+    h+='<div class="mr-meta">';
+    h+='<span>'+m.source+'</span>';
+    if(m.lat)h+='<span>📍 '+m.lat+', '+m.lng+'</span>';
+    h+='<span>'+new Date(m.ts).toLocaleTimeString()+'</span>';
+    h+='</div></div>';
+    h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
+    h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
+    h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
+    h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button>';
+    h+='</div>';
+    return h;
+  }).join('');
+}
+
+function formatVal(v,u){
+  if(u==='m')return v.toFixed(4);
+  if(u==='mm')return v.toFixed(1);
+  if(u==='ft')return v.toFixed(3);
+  if(u==='in')return v.toFixed(2);
+  return v.toFixed(4);
+}
+
+function updateCalc(){
+  var a=MEAS.find(function(m){return m.tag==='a';});
+  var b=MEAS.find(function(m){return m.tag==='b';});
+  var panel=document.getElementById('calc-panel');
+  if(!a&&!b){panel.style.display='none';return;}
+  panel.style.display='block';
+  var aIn=a?toInches(a.value,a.unit):null;
+  var bIn=b?toInches(b.value,b.unit):null;
+  document.getElementById('calc-a').textContent=a?(formatVal(a.value,a.unit)+' '+a.unit):'—';
+  document.getElementById('calc-b').textContent=b?(formatVal(b.value,b.unit)+' '+b.unit):'—';
+  if(aIn!==null&&bIn!==null){
+    var drop=Math.abs(aIn-bIn);
+    document.getElementById('calc-result').textContent=drop.toFixed(2)+' in';
+  }else{
+    document.getElementById('calc-result').textContent='—';
+  }
+}
+
+function saveCalcAsRow(){
+  var a=MEAS.find(function(m){return m.tag==='a';});
+  var b=MEAS.find(function(m){return m.tag==='b';});
+  if(!a||!b){alert('Tag a measurement as A and B first');return;}
+  var aIn=toInches(a.value,a.unit);
+  var bIn=toInches(b.value,b.unit);
+  var drop=Math.abs(aIn-bIn);
+  addMeasurement(drop,'in','Calculated (A−B)');
+  MEAS[MEAS.length-1].label='Edge drop-off';
+}
+
+function exportLog(){
+  if(!MEAS.length){alert('No measurements to export');return;}
+  var data={exportDate:new Date().toISOString(),measurements:MEAS};
+  dl(JSON.stringify(data,null,2),'disto_log_'+dateStamp()+'.json','application/json');
+  var csv='#,Value,Unit,Label,Tag,Source,Lat,Lng,Timestamp\n';
+  MEAS.forEach(function(m){
+    csv+=[m.num,m.value,m.unit,q(m.label),m.tag||'',q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+'\n';
+  });
+  setTimeout(function(){dl(csv,'disto_log_'+dateStamp()+'.csv','text/csv');},300);
+}
+
+function clearLog(){
+  if(!MEAS.length)return;
+  if(!confirm('Clear all '+MEAS.length+' measurements?'))return;
+  MEAS=[];_nextNum=1;save();renderLog();updateCalc();
+}
+
+function toggleDebug(){
+  document.getElementById('debug-panel').classList.toggle('show');
+}
+
+function dbg(msg){
+  var el=document.getElementById('debug-log');
+  var ts=new Date().toLocaleTimeString();
+  el.textContent+='['+ts+'] '+msg+'\n';
+  el.scrollTop=el.scrollHeight;
+  console.log('[DISTO]',msg);
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
+function dateStamp(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dl(content,name,type){
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:type}));
+  a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},200);
+}
+
+load();renderLog();updateCalc();startGPS();
+dbg('DISTO Logger ready. Use Chrome or Edge on Windows for Bluetooth support.');
+</script>
+</body>
+</html>
