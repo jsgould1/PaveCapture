@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DISTO Logger — Leica Measurement Tool</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#f1f5f9;
+  --muted:#94a3b8;--accent:#f59e0b;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;}
+select,input,textarea{font-size:16px !important;}
+#app{display:flex;flex-direction:column;height:100vh;max-width:900px;margin:0 auto;}
+#top-bar{background:var(--surface);padding:10px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brand{font-weight:800;font-size:18px;color:var(--accent);}
+.brand span{color:var(--text);font-weight:400;font-size:12px;margin-left:6px;}
+.top-spacer{flex:1;}
+.top-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;}
+.top-btn:hover{border-color:var(--accent);color:var(--accent);}
+#connect-bar{background:var(--surface);padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+#connect-btn{padding:10px 20px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;}
+#connect-btn.disconnected{background:var(--blue);color:#fff;}
+#connect-btn.connecting{background:var(--accent);color:#000;}
+#connect-btn.connected{background:var(--green);color:#000;}
+#connect-status{font-size:12px;color:var(--muted);font-weight:600;flex:1;}
+#shoot-btn{padding:12px 24px;border-radius:12px;border:none;font-size:16px;font-weight:900;cursor:pointer;background:var(--red);color:#fff;display:none;}
+#shoot-btn.ready{display:flex;align-items:center;gap:8px;}
+#shoot-btn:active{transform:scale(.96);}
+#log-area{flex:1;overflow-y:auto;padding:16px;}
+#empty-state{text-align:center;padding:40px 24px;color:var(--muted);}
+#empty-state .es-icon{font-size:56px;margin-bottom:12px;}
+#empty-state h3{font-size:18px;color:var(--accent);font-weight:800;margin-bottom:8px;}
+#empty-state p{font-size:13px;line-height:1.6;max-width:420px;margin:0 auto;}
+.meas-row{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.meas-row.tagged{border-color:var(--accent);}
+.meas-row .mr-num{background:var(--bg);color:var(--accent);border:1px solid var(--accent);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.meas-row .mr-body{flex:1;min-width:0;}
+.meas-row .mr-value{font-size:22px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;}
+.meas-row .mr-value .unit{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px;}
+.meas-row .mr-meta{font-size:10px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
+.meas-row .mr-label{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text);width:140px;min-width:0;}
+.meas-row .mr-label:focus{border-color:var(--accent);}
+.meas-row .mr-tag{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);}
+.meas-row .mr-tag.a{background:rgba(59,130,246,.2);color:var(--blue);border-color:var(--blue);}
+.meas-row .mr-tag.b{background:rgba(245,158,11,.2);color:var(--accent);border-color:var(--accent);}
+.meas-row .mr-del{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;flex-shrink:0;}
+.meas-row .mr-del:hover{color:var(--red);}
+#calc-panel{background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;flex-shrink:0;}
+#calc-panel h4{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.calc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.calc-val{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:16px;font-weight:800;color:var(--text);min-width:80px;text-align:center;font-variant-numeric:tabular-nums;}
+.calc-val.a{border-color:var(--blue);color:var(--blue);}
+.calc-val.b{border-color:var(--accent);color:var(--accent);}
+.calc-op{font-size:18px;font-weight:900;color:var(--muted);}
+.calc-result{background:var(--green);color:#000;border-radius:8px;padding:8px 14px;font-size:16px;font-weight:900;min-width:100px;text-align:center;}
+.calc-label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px;}
+#bottom-bar{background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;}
+#manual-input{flex:1;min-width:120px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;}
+#manual-input:focus{border-color:var(--accent);outline:none;}
+#manual-unit{padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;min-width:60px;}
+.bottom-btn{padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:800;cursor:pointer;}
+#cmd-bar{display:flex;}
+.cmd-btn{padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.cmd-btn:hover{border-color:var(--accent);color:var(--accent);}
+.cmd-btn:active{background:var(--accent);color:#000;transform:scale(.95);}
+#debug-panel{display:none;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px;max-height:200px;overflow-y:auto;flex-shrink:0;}
+#debug-panel.show{display:block;}
+#debug-log{font-family:'Cascadia Code','Consolas',monospace;font-size:11px;color:var(--muted);white-space:pre-wrap;line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top-bar">
+    <div class="brand">DISTO Logger<span>Leica X3</span></div>
+    <div class="top-spacer"></div>
+    <span id="meas-count" style="font-size:12px;color:var(--accent);font-weight:800">0</span>
+    <button class="top-btn" onclick="toggleDebug()">🔧</button>
+    <button class="top-btn" onclick="exportLog()">📤</button>
+    <button class="top-btn" onclick="clearLog()">🗑</button>
+  </div>
+  <div id="connect-bar">
+    <button id="connect-btn" class="disconnected" onclick="toggleConnection()">
+      <span id="connect-icon">🔗</span>
+      <span id="connect-label">Connect DISTO</span>
+    </button>
+    <span id="connect-status">Unpair from Windows first, then connect here</span>
+    <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
+  </div>
+  <div id="cmd-bar" style="display:none;background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;gap:4px">
+    <span style="font-size:10px;color:var(--accent);font-weight:800;width:100%;margin-bottom:2px">— Distocom protocol (ASCII on 3ab10120) —</span>
+    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getBrand\r\n')" title="Test — response on 3ab10121">getBrand</button>
+    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getSerial\r\n')">getSerial</button>
+    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('o\r\n')" title="Laser on">🔴 laserOn</button>
+    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('p\r\n')" title="Laser off">⚫ laserOff</button>
+    <button class="cmd-btn" style="background:rgba(245,158,11,.3);border-color:var(--accent);color:var(--accent);font-weight:900" onclick="sendDistocom('raiseEvent 10\r\n')" title="Trigger measurement">🎯 raiseEvent 10</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 1\r\n')">re1</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 2\r\n')">re2</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 3\r\n')">re3</button>
+    <button class="cmd-btn" onclick="sendDistocom('getMeasure\r\n')">getMeasure</button>
+    <button class="cmd-btn" onclick="sendDistocom('getDistance\r\n')">getDistance</button>
+    <button class="cmd-btn" onclick="sendDistocom('startMeas\r\n')">startMeas</button>
+    <span style="font-size:10px;color:var(--muted);font-weight:800;width:100%;margin-top:6px;margin-bottom:2px">— Legacy single-byte (fallback) —</span>
+    <button class="cmd-btn" onclick="sendCmd(0x61)" title="0x61 'a'">a</button>
+    <button class="cmd-btn" onclick="sendCmd(0x63)">c</button>
+    <button class="cmd-btn" onclick="sendCmd(0x64)">d</button>
+    <button class="cmd-btn" onclick="sendCmd(0x65)">e</button>
+    <button class="cmd-btn" onclick="sendCmd(0x66)">f</button>
+    <button class="cmd-btn" onclick="sendCmd(0x67)">g</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6F)" title="laser on">o</button>
+    <button class="cmd-btn" onclick="sendCmd(0x70)" title="laser off">p</button>
+    <button class="cmd-btn" onclick="sendCmd(0x73)">s</button>
+    <button class="cmd-btn" onclick="sendCmd(0x74)">t</button>
+    <button class="cmd-btn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="runAutoScan()" title="Auto-scan all command formats">🔍 AUTO SCAN</button>
+    <button class="cmd-btn" onclick="stopAutoScan()">⏹ Stop</button>
+    <div id="scan-status" style="font-size:10px;color:var(--accent);font-weight:700;width:100%;margin-top:4px"></div>
+  </div>
+  <div id="log-area">
+    <div id="empty-state">
+      <div class="es-icon">📏</div>
+      <h3>Ready to Measure</h3>
+      <p><b style="color:var(--green)">BLE Direct Mode:</b><br>
+      1. <b style="color:var(--red)">Remove</b> the DISTO from Windows Bluetooth settings<br>
+      2. Turn on Bluetooth on the DISTO (App mode, not Keyboard)<br>
+      3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
+      4. If Chrome shows a pairing prompt, <b>accept it</b><br>
+      5. Tap <b>🎯 SHOOT</b> or press measure on the DISTO<br><br>
+      <b style="color:var(--accent)">Tip:</b> Use <b>getBrand</b> button to test command channel — response appears in 🔧 debug log.<br><br>
+      Manual entry also works below. <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> pre-tags for drop-off.</p>
+    </div>
+    <div id="log-rows"></div>
+  </div>
+  <div id="calc-panel" style="display:none">
+    <h4>📐 Edge Drop-Off (A − B)</h4>
+    <div class="calc-row">
+      <div><div class="calc-val a" id="calc-a">—</div><div class="calc-label">A: Pavement</div></div>
+      <div class="calc-op">−</div>
+      <div><div class="calc-val b" id="calc-b">—</div><div class="calc-label">B: Shoulder</div></div>
+      <div class="calc-op">=</div>
+      <div><div class="calc-result" id="calc-result">—</div><div class="calc-label">Drop-Off</div></div>
+      <div style="margin-left:auto"><button onclick="saveCalcAsRow()" class="bottom-btn" style="background:var(--green);color:#000;font-size:11px;padding:8px 12px">💾 Log</button></div>
+    </div>
+  </div>
+  <div id="bottom-bar">
+    <input type="text" id="manual-input" placeholder="Manual entry or DISTO keyboard…" onkeydown="if(event.key==='Enter'){event.preventDefault();addManual();}">
+    <select id="manual-unit"><option value="ft">ft</option><option value="in">in</option><option value="m">m</option><option value="mm">mm</option></select>
+    <button class="bottom-btn" onclick="addManual()" style="background:var(--accent);color:#000;">+ Add</button>
+    <button class="bottom-btn" id="btn-tag-a" onclick="armTag('a')" style="background:rgba(59,130,246,.2);color:var(--blue);border:1px solid var(--blue);">A Next</button>
+    <button class="bottom-btn" id="btn-tag-b" onclick="armTag('b')" style="background:rgba(245,158,11,.2);color:var(--accent);border:1px solid var(--accent);">B Next</button>
+  </div>
+</div>
+<div id="debug-panel">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-size:12px;font-weight:800;color:var(--accent)">🔧 BLE Debug</span>
+    <button onclick="document.getElementById('debug-log').textContent=''" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">Clear</button>
+  </div>
+  <div id="debug-log"></div>
+</div>
+<script>
+var MEAS=[],_lat=null,_lng=null,_nextNum=1,_armedTag='';
+var _device=null,_server=null,_cmdChar=null,_connected=false;
+var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
+var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
+var DISTO_DIST='3ab10101-f831-4395-b29d-570977d5bf94';
+var DISTO_CMD_RX='3ab10120-f831-4395-b29d-570977d5bf94'; // Distocom receive — write ASCII cmds here
+var DISTO_CMD_TX='3ab10121-f831-4395-b29d-570977d5bf94'; // Distocom transmit — text responses
+var DISTO_EVT='3ab10122-f831-4395-b29d-570977d5bf94';   // event notifications
+var LS='distologger_v1';
+function save(){try{localStorage.setItem(LS,JSON.stringify({meas:MEAS,nextNum:_nextNum}));}catch(e){}}
+function load(){try{var r=localStorage.getItem(LS);if(r){var d=JSON.parse(r);MEAS=d.meas||[];_nextNum=d.nextNum||MEAS.length+1;}}catch(e){}}
+function startGPS(){if(!navigator.geolocation)return;navigator.geolocation.watchPosition(function(p){_lat=p.coords.latitude;_lng=p.coords.longitude;},function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});}
+async function toggleConnection(){if(_connected){disconnect();return;}await connectDisto();}
+async function connectDisto(){
+  if(!navigator.bluetooth){alert('Use Chrome or Edge on Windows.');return;}
+  updateConnectUI('connecting','Scanning…');
+  dbg('Requesting DISTO…');
+  try{
+    _device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'DISTO'},{namePrefix:'Leica'},{namePrefix:'disto'}],optionalServices:[DISTO_SVC,'0000180a-0000-1000-8000-00805f9b34fb','0000180f-0000-1000-8000-00805f9b34fb']});
+    dbg('Selected: '+_device.name);
+    _device.addEventListener('gattserverdisconnected',onDisconnected);
+    updateConnectUI('connecting','Connecting…');
+    _server=await _device.gatt.connect();
+    dbg('GATT connected');
+    var svc;
+    try{svc=await _server.getPrimaryService(DISTO_SVC);dbg('✓ Leica service found!');}catch(e){
+      dbg('✕ Leica service NOT found: '+e.message);
+      try{var allSvc=await _server.getPrimaryServices();dbg('Services:');for(var i=0;i<allSvc.length;i++){dbg('  '+allSvc[i].uuid);}}catch(se){}
+      updateConnectUI('disconnected','Leica service not found');return;
+    }
+    dbg('Enumerating characteristics…');
+    var allChars=[];
+    try{allChars=await svc.getCharacteristics();dbg('Found '+allChars.length+':');for(var ci=0;ci<allChars.length;ci++){var ch=allChars[ci];var pr=ch.properties;var flags=[];if(pr.read)flags.push('R');if(pr.write)flags.push('W');if(pr.writeWithoutResponse)flags.push('Wn');if(pr.notify)flags.push('N');if(pr.indicate)flags.push('I');dbg('  '+ch.uuid+' ['+flags.join(',')+']');}}catch(ee){dbg('Enum error: '+ee.message);}
+    dbg('Reading chars for bonding…');
+    for(var bi=0;bi<allChars.length;bi++){if(allChars[bi].properties.read){try{var rv=await allChars[bi].readValue();dbg('  '+allChars[bi].uuid+': '+dataViewToHex(rv));}catch(re){dbg('  '+allChars[bi].uuid+': '+re.message);}}}
+    var subscribed=false;
+    for(var si=0;si<allChars.length;si++){var sc=allChars[si];if(sc.properties.notify||sc.properties.indicate){try{await sc.startNotifications();sc.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Sub '+sc.uuid);subscribed=true;}catch(se){dbg('  Sub '+sc.uuid+': '+se.message);}}}
+    if(!subscribed)dbg('⚠ No subscriptions');
+    _cmdChar=null;
+    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].uuid.startsWith('3ab10120')){_cmdChar=allChars[wi];dbg('✓ Distocom RX char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}
+    if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
+    if(!_cmdChar)dbg('⚠ No writable char');
+    try{var bs=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var bc=await bs.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var bv=await bc.readValue();dbg('Battery: '+bv.getUint8(0)+'%');}catch(e){}
+    _connected=true;
+    if(_cmdChar)document.getElementById('cmd-bar').style.display='flex';
+    updateConnectUI('connected','Connected — tap SHOOT or press measure on DISTO');
+  }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
+}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+async function shootDisto(){await sendDistocom('raiseEvent 10\r\n');}
+async function sendDistocom(str){
+  if(!_cmdChar){alert('Not connected');return;}
+  var bytes=[];for(var i=0;i<str.length;i++)bytes.push(str.charCodeAt(i));
+  dbg('Distocom → "'+str.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'" → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
+    dbg('✓ Sent');
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+async function sendCmd(byte){
+  if(!_cmdChar){alert('Not connected');return;}
+  dbg('Send raw 0x'+byte.toString(16)+' → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array([byte]));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array([byte]));
+    dbg('✓ Sent 0x'+byte.toString(16));
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+async function sendMulti(bytes){
+  if(!_cmdChar){alert('Not connected');return;}
+  var hex=bytes.map(function(b){return '0x'+b.toString(16);}).join(' ');
+  dbg('Send raw ['+hex+'] → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
+    dbg('✓ Sent '+bytes.length+' bytes');
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+function onMeasurement(event){
+  var raw=event.target.value;
+  var uuid=event.target.uuid||'';
+  // Distocom text responses (3ab10121)
+  if(uuid.startsWith('3ab10121')){
+    try{var txt=new TextDecoder().decode(raw);dbg('Distocom TX: "'+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'"');}catch(e){dbg('Distocom TX (raw): '+dataViewToHex(raw));}
+    return;
+  }
+  // Event channel (3ab10122)
+  if(uuid.startsWith('3ab10122')){
+    dbg('Event ('+uuid.slice(0,10)+'): '+dataViewToHex(raw));
+    return;
+  }
+  // Measurement data
+  dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
+  if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');addMeasurement(dist,'m','DISTO BLE');return;}}
+  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');addMeasurement(mm,'mm','DISTO BLE');return;}}
+  dbg('Raw data (not parsed as measurement)');
+}
+function dataViewToHex(dv){var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));return h.join(' ');}
+function updateConnectUI(state,text){var btn=document.getElementById('connect-btn');btn.className=state;document.getElementById('connect-icon').textContent=state==='connected'?'✓':state==='connecting'?'⏳':'🔗';document.getElementById('connect-label').textContent=state==='connected'?'Connected':state==='connecting'?'Connecting…':'Connect DISTO';document.getElementById('connect-status').textContent=text;}
+function armTag(tag){_armedTag=(_armedTag===tag)?'':tag;updateArmUI();}
+function updateArmUI(){var a=document.getElementById('btn-tag-a'),b=document.getElementById('btn-tag-b');a.textContent=_armedTag==='a'?'▶ A ARMED':'A Next';b.textContent=_armedTag==='b'?'▶ B ARMED':'B Next';a.style.borderWidth=_armedTag==='a'?'3px':'1px';b.style.borderWidth=_armedTag==='b'?'3px':'1px';}
+function addMeasurement(value,unit,source){
+  var autoTag=_armedTag;if(autoTag){MEAS.forEach(function(m){if(m.tag===autoTag)m.tag='';});_armedTag='';updateArmUI();}
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:value,unit:unit||'m',label:'',tag:autoTag,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:source||'Manual',ts:new Date().toISOString()});
+  save();renderLog();updateCalc();setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+}
+function addManual(){var inp=document.getElementById('manual-input'),raw=inp.value.trim();if(!raw)return;var num=parseFloat(raw.replace(/[^0-9.\-]/g,''));if(isNaN(num)){alert('Could not parse: '+raw);return;}var unit=document.getElementById('manual-unit').value;var lower=raw.toLowerCase();if(lower.indexOf('mm')>=0)unit='mm';else if(lower.indexOf('ft')>=0)unit='ft';else if(lower.indexOf('in')>=0)unit='in';else if(lower.indexOf('m')>=0)unit='m';addMeasurement(num,unit,raw.length>6?'DISTO KBD':'Manual');inp.value='';inp.focus();}
+function tagRow(id,tag){MEAS.forEach(function(m){if(m.tag===tag)m.tag='';});var m=MEAS.find(function(x){return x.id===id;});if(m)m.tag=tag;save();renderLog();updateCalc();}
+function deleteRow(id){MEAS=MEAS.filter(function(x){return x.id!==id;});save();renderLog();updateCalc();}
+function updateLabel(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.label=val;save();}}
+function toInches(v,u){if(u==='in')return v;if(u==='ft')return v*12;if(u==='m')return v*39.3701;if(u==='mm')return v/25.4;return v;}
+function renderLog(){
+  var rows=document.getElementById('log-rows'),empty=document.getElementById('empty-state');
+  document.getElementById('meas-count').textContent=MEAS.length+' meas';
+  if(!MEAS.length){empty.style.display='block';rows.innerHTML='';return;}
+  empty.style.display='none';
+  rows.innerHTML=MEAS.map(function(m){
+    var h='<div class="meas-row'+((m.tag)?' tagged':'')+'">';
+    h+='<div class="mr-num">'+m.num+'</div><div class="mr-body">';
+    h+='<div class="mr-value">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
+    h+='<div class="mr-meta"><span>'+esc(m.source)+'</span>';
+    if(m.lat)h+='<span>📍'+m.lat+','+m.lng+'</span>';
+    h+='<span>'+new Date(m.ts).toLocaleTimeString()+'</span></div></div>';
+    h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
+    h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
+    h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
+    h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
+    return h;
+  }).join('');
+}
+function formatVal(v,u){if(u==='m')return v.toFixed(4);if(u==='mm')return v.toFixed(1);if(u==='ft')return v.toFixed(3);if(u==='in')return v.toFixed(2);return v.toFixed(4);}
+function updateCalc(){
+  var a=MEAS.find(function(m){return m.tag==='a';}),b=MEAS.find(function(m){return m.tag==='b';});
+  var panel=document.getElementById('calc-panel');
+  if(!a&&!b){panel.style.display='none';return;}panel.style.display='block';
+  var aIn=a?toInches(a.value,a.unit):null,bIn=b?toInches(b.value,b.unit):null;
+  document.getElementById('calc-a').textContent=a?(formatVal(a.value,a.unit)+' '+a.unit):'—';
+  document.getElementById('calc-b').textContent=b?(formatVal(b.value,b.unit)+' '+b.unit):'—';
+  document.getElementById('calc-result').textContent=(aIn!==null&&bIn!==null)?Math.abs(aIn-bIn).toFixed(2)+' in':'—';
+}
+function saveCalcAsRow(){var a=MEAS.find(function(m){return m.tag==='a';}),b=MEAS.find(function(m){return m.tag==='b';});if(!a||!b){alert('Tag A and B first');return;}addMeasurement(Math.abs(toInches(a.value,a.unit)-toInches(b.value,b.unit)),'in','Calc (A−B)');MEAS[MEAS.length-1].label='Edge drop-off';}
+function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Tag,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),m.tag||'',q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+"\n";});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
+function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();updateCalc();}
+function toggleDebug(){document.getElementById('debug-panel').classList.toggle('show');}
+function dbg(msg){var el=document.getElementById('debug-log');el.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';el.scrollTop=el.scrollHeight;console.log('[DISTO]',msg);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
+function ds(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dl(c,n,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}
+load();renderLog();updateCalc();startGPS();
+var _scanning=false;
+function stopAutoScan(){_scanning=false;dbg('⏹ Scan stopped');document.getElementById('scan-status').textContent='Stopped';}
+async function runAutoScan(){
+  if(!_cmdChar){alert('Connect first');return;}
+  if(_scanning){stopAutoScan();return;}
+  _scanning=true;
+  var q=[];
+  [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
+   0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F,
+   0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x2A,0x30,0x31,0x32,0x33,
+   0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,
+   0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,
+   0x75,0x76,0x77,0x78,0x79,0x7A,0x7B,0x7C,0x7D,0x7E,0x7F,
+   0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8A,
+   0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,
+   0xA0,0xA1,0xA2,0xA3,0xA4,0xA5,0xB0,0xB1,0xB2,0xB3,0xB4,0xB5,
+   0xC0,0xC1,0xC2,0xC3,0xC4,0xC5,0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,
+   0xE0,0xE1,0xE2,0xE3,0xE4,0xE5,0xF0,0xF1,0xF2,0xF3,0xF4,0xF5,0xFE,0xFF
+  ].forEach(function(b){q.push({l:'0x'+b.toString(16).padStart(2,'0'),d:[b]});});
+  [0x00,0x01,0x02,0x03,0x04,0x10,0x20,0x40,0x80,0xFE,0xFF].forEach(function(p){
+    [0x01,0x02,0x03,0x04,0x10,0x11,0x20,0x21,0x30,0x40,0x41,0x67].forEach(function(c){
+      q.push({l:'['+p.toString(16)+','+c.toString(16)+']',d:[p,c]});
+    });
+  });
+  ['g\r','g\n','gb','gb\r','mi','mi\r','mp','mp\r','dist','dist\r','meas','meas\r',
+   'get','get\r','get8\r','go','go\r','s\r','d\r','m\r','fire\r','trig\r'].forEach(function(s){
+    var b=[];for(var i=0;i<s.length;i++)b.push(s.charCodeAt(i));
+    q.push({l:'"'+s.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'"',d:b});
+  });
+  [0x00,0x01,0x02,0x03,0x04,0x10,0x20,0x40,0x80].forEach(function(t){
+    q.push({l:'pkt['+t.toString(16)+',67]',d:[t,0x67]});
+    q.push({l:'pkt[1,'+t.toString(16)+',67]',d:[0x01,t,0x67]});
+    q.push({l:'pkt[2,'+t.toString(16)+',67]',d:[0x02,t,0x67]});
+  });
+  dbg('═══ AUTO SCAN: '+q.length+' commands ═══');
+  dbg('Watch DISTO screen for laser/display changes.');
+  for(var i=0;i<q.length;i++){
+    if(!_scanning)break;
+    document.getElementById('scan-status').textContent=(i+1)+'/'+q.length+': '+q[i].l;
+    var s1='',s2='';
+    try{var svc=await _server.getPrimaryService(DISTO_SVC);
+      var c1=await svc.getCharacteristic('3ab10121-f831-4395-b29d-570977d5bf94');s1=dataViewToHex(await c1.readValue());
+      var c2=await svc.getCharacteristic('3ab10122-f831-4395-b29d-570977d5bf94');s1+='/'+dataViewToHex(await c2.readValue());
+    }catch(e){}
+    try{var a=new Uint8Array(q[i].d);
+      if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(a);
+      else await _cmdChar.writeValueWithResponse(a);
+    }catch(e){dbg('  ✕ '+q[i].l+': '+e.message);continue;}
+    await new Promise(function(r){setTimeout(r,350);});
+    try{var svc2=await _server.getPrimaryService(DISTO_SVC);
+      var c3=await svc2.getCharacteristic('3ab10121-f831-4395-b29d-570977d5bf94');s2=dataViewToHex(await c3.readValue());
+      var c4=await svc2.getCharacteristic('3ab10122-f831-4395-b29d-570977d5bf94');s2+='/'+dataViewToHex(await c4.readValue());
+    }catch(e){}
+    if(s1!==s2)dbg('  ★ '+q[i].l+' → STATUS: '+s1+' → '+s2);
+    await new Promise(function(r){setTimeout(r,150);});
+  }
+  _scanning=false;
+  dbg('═══ SCAN COMPLETE ═══');
+  document.getElementById('scan-status').textContent='Done — check debug for ★';
+}
+dbg('DISTO Logger — Distocom protocol active. SHOOT = raiseEvent 10\\r\\n');
+</script>
+</body>
+</html>
