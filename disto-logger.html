@@ -90,28 +90,30 @@ select,input,textarea{font-size:16px !important;}
     <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
   </div>
   <div id="cmd-bar" style="display:none;background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;gap:4px">
-    <button class="cmd-btn" onclick="sendCmd(0x61)" title="0x61 'a'">On</button>
-    <button class="cmd-btn" onclick="sendCmd(0x63)" title="0x63 'c'">Cont</button>
-    <button class="cmd-btn" onclick="sendCmd(0x64)" title="0x64 'd'">d</button>
-    <button class="cmd-btn" onclick="sendCmd(0x65)" title="0x65">e</button>
-    <button class="cmd-btn" onclick="sendCmd(0x66)" title="0x66">f</button>
-    <button class="cmd-btn" onclick="sendCmd(0x67)" title="0x67 'g' trigger">🎯 g</button>
-    <button class="cmd-btn" onclick="sendCmd(0x68)">h</button>
-    <button class="cmd-btn" onclick="sendCmd(0x69)">i</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6A)">j</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6B)">k</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6C)">l</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6D)">m</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6E)">n</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6F)" title="laser on">🔴 o</button>
-    <button class="cmd-btn" onclick="sendCmd(0x70)" title="laser off">⚫ p</button>
-    <button class="cmd-btn" onclick="sendCmd(0x71)">q</button>
-    <button class="cmd-btn" onclick="sendCmd(0x72)">r</button>
+    <span style="font-size:10px;color:var(--accent);font-weight:800;width:100%;margin-bottom:2px">— Distocom protocol (ASCII on 3ab10120) —</span>
+    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getBrand\r\n')" title="Test — response on 3ab10121">getBrand</button>
+    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getSerial\r\n')">getSerial</button>
+    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('o\r\n')" title="Laser on">🔴 laserOn</button>
+    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('p\r\n')" title="Laser off">⚫ laserOff</button>
+    <button class="cmd-btn" style="background:rgba(245,158,11,.3);border-color:var(--accent);color:var(--accent);font-weight:900" onclick="sendDistocom('raiseEvent 10\r\n')" title="Trigger measurement">🎯 raiseEvent 10</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 1\r\n')">re1</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 2\r\n')">re2</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 3\r\n')">re3</button>
+    <button class="cmd-btn" onclick="sendDistocom('getMeasure\r\n')">getMeasure</button>
+    <button class="cmd-btn" onclick="sendDistocom('getDistance\r\n')">getDistance</button>
+    <button class="cmd-btn" onclick="sendDistocom('startMeas\r\n')">startMeas</button>
+    <span style="font-size:10px;color:var(--muted);font-weight:800;width:100%;margin-top:6px;margin-bottom:2px">— Legacy single-byte (fallback) —</span>
+    <button class="cmd-btn" onclick="sendCmd(0x61)" title="0x61 'a'">a</button>
+    <button class="cmd-btn" onclick="sendCmd(0x63)">c</button>
+    <button class="cmd-btn" onclick="sendCmd(0x64)">d</button>
+    <button class="cmd-btn" onclick="sendCmd(0x65)">e</button>
+    <button class="cmd-btn" onclick="sendCmd(0x66)">f</button>
+    <button class="cmd-btn" onclick="sendCmd(0x67)">g</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6F)" title="laser on">o</button>
+    <button class="cmd-btn" onclick="sendCmd(0x70)" title="laser off">p</button>
     <button class="cmd-btn" onclick="sendCmd(0x73)">s</button>
     <button class="cmd-btn" onclick="sendCmd(0x74)">t</button>
-    <button class="cmd-btn" onclick="sendMulti([0x63,0x66,0x62,0x20,0x30])">cfb 0</button>
-    <button class="cmd-btn" onclick="sendMulti([0x63,0x66,0x6D])">cfm</button>
-    <button class="cmd-btn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="runAutoScan()" title="Auto-scan command formats">🔍 AUTO SCAN</button>
+    <button class="cmd-btn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="runAutoScan()" title="Auto-scan all command formats">🔍 AUTO SCAN</button>
     <button class="cmd-btn" onclick="stopAutoScan()">⏹ Stop</button>
     <div id="scan-status" style="font-size:10px;color:var(--accent);font-weight:700;width:100%;margin-top:4px"></div>
   </div>
@@ -124,7 +126,8 @@ select,input,textarea{font-size:16px !important;}
       2. Turn on Bluetooth on the DISTO (App mode, not Keyboard)<br>
       3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
       4. If Chrome shows a pairing prompt, <b>accept it</b><br>
-      5. Once connected, try the command buttons to find the trigger<br><br>
+      5. Tap <b>🎯 SHOOT</b> or press measure on the DISTO<br><br>
+      <b style="color:var(--accent)">Tip:</b> Use <b>getBrand</b> button to test command channel — response appears in 🔧 debug log.<br><br>
       Manual entry also works below. <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> pre-tags for drop-off.</p>
     </div>
     <div id="log-rows"></div>
@@ -161,8 +164,9 @@ var _device=null,_server=null,_cmdChar=null,_connected=false;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
 var DISTO_DIST='3ab10101-f831-4395-b29d-570977d5bf94';
-var DISTO_CMD='3ab10109-f831-4395-b29d-570977d5bf94';
-var TRIGGER_CMD=0x67;
+var DISTO_CMD_RX='3ab10120-f831-4395-b29d-570977d5bf94'; // Distocom receive — write ASCII cmds here
+var DISTO_CMD_TX='3ab10121-f831-4395-b29d-570977d5bf94'; // Distocom transmit — text responses
+var DISTO_EVT='3ab10122-f831-4395-b29d-570977d5bf94';   // event notifications
 var LS='distologger_v1';
 function save(){try{localStorage.setItem(LS,JSON.stringify({meas:MEAS,nextNum:_nextNum}));}catch(e){}}
 function load(){try{var r=localStorage.getItem(LS);if(r){var d=JSON.parse(r);MEAS=d.meas||[];_nextNum=d.nextNum||MEAS.length+1;}}catch(e){}}
@@ -194,20 +198,31 @@ async function connectDisto(){
     for(var si=0;si<allChars.length;si++){var sc=allChars[si];if(sc.properties.notify||sc.properties.indicate){try{await sc.startNotifications();sc.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Sub '+sc.uuid);subscribed=true;}catch(se){dbg('  Sub '+sc.uuid+': '+se.message);}}}
     if(!subscribed)dbg('⚠ No subscriptions');
     _cmdChar=null;
-    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('✓ Write: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}
+    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].uuid.startsWith('3ab10120')){_cmdChar=allChars[wi];dbg('✓ Distocom RX char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}
+    if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
     if(!_cmdChar)dbg('⚠ No writable char');
     try{var bs=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var bc=await bs.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var bv=await bc.readValue();dbg('Battery: '+bv.getUint8(0)+'%');}catch(e){}
     _connected=true;
     if(_cmdChar)document.getElementById('cmd-bar').style.display='flex';
-    updateConnectUI('connected','Connected — try command buttons or press measure on DISTO');
+    updateConnectUI('connected','Connected — tap SHOOT or press measure on DISTO');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
 function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
 function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
-async function shootDisto(){await sendCmd(TRIGGER_CMD);}
+async function shootDisto(){await sendDistocom('raiseEvent 10\r\n');}
+async function sendDistocom(str){
+  if(!_cmdChar){alert('Not connected');return;}
+  var bytes=[];for(var i=0;i<str.length;i++)bytes.push(str.charCodeAt(i));
+  dbg('Distocom → "'+str.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'" → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
+    dbg('✓ Sent');
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
 async function sendCmd(byte){
   if(!_cmdChar){alert('Not connected');return;}
-  dbg('Send 0x'+byte.toString(16)+' ("'+String.fromCharCode(byte)+'") → '+_cmdChar.uuid);
+  dbg('Send raw 0x'+byte.toString(16)+' → '+_cmdChar.uuid);
   try{
     if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array([byte]));
     else await _cmdChar.writeValueWithResponse(new Uint8Array([byte]));
@@ -217,8 +232,7 @@ async function sendCmd(byte){
 async function sendMulti(bytes){
   if(!_cmdChar){alert('Not connected');return;}
   var hex=bytes.map(function(b){return '0x'+b.toString(16);}).join(' ');
-  var ascii=bytes.map(function(b){return String.fromCharCode(b);}).join('');
-  dbg('Send ['+hex+'] ("'+ascii+'") → '+_cmdChar.uuid);
+  dbg('Send raw ['+hex+'] → '+_cmdChar.uuid);
   try{
     if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
     else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
@@ -227,7 +241,19 @@ async function sendMulti(bytes){
 }
 function onMeasurement(event){
   var raw=event.target.value;
-  dbg('Data from '+event.target.uuid+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
+  var uuid=event.target.uuid||'';
+  // Distocom text responses (3ab10121)
+  if(uuid.startsWith('3ab10121')){
+    try{var txt=new TextDecoder().decode(raw);dbg('Distocom TX: "'+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'"');}catch(e){dbg('Distocom TX (raw): '+dataViewToHex(raw));}
+    return;
+  }
+  // Event channel (3ab10122)
+  if(uuid.startsWith('3ab10122')){
+    dbg('Event ('+uuid.slice(0,10)+'): '+dataViewToHex(raw));
+    return;
+  }
+  // Measurement data
+  dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');addMeasurement(dist,'m','DISTO BLE');return;}}
   if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');addMeasurement(mm,'mm','DISTO BLE');return;}}
   dbg('Raw data (not parsed as measurement)');
@@ -276,7 +302,7 @@ function updateCalc(){
   document.getElementById('calc-result').textContent=(aIn!==null&&bIn!==null)?Math.abs(aIn-bIn).toFixed(2)+' in':'—';
 }
 function saveCalcAsRow(){var a=MEAS.find(function(m){return m.tag==='a';}),b=MEAS.find(function(m){return m.tag==='b';});if(!a||!b){alert('Tag A and B first');return;}addMeasurement(Math.abs(toInches(a.value,a.unit)-toInches(b.value,b.unit)),'in','Calc (A−B)');MEAS[MEAS.length-1].label='Edge drop-off';}
-function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Tag,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),m.tag||'',q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+'\n';});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
+function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Tag,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),m.tag||'',q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+"\n";});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
 function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();updateCalc();}
 function toggleDebug(){document.getElementById('debug-panel').classList.toggle('show');}
 function dbg(msg){var el=document.getElementById('debug-log');el.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';el.scrollTop=el.scrollHeight;console.log('[DISTO]',msg);}
@@ -345,7 +371,7 @@ async function runAutoScan(){
   dbg('═══ SCAN COMPLETE ═══');
   document.getElementById('scan-status').textContent='Done — check debug for ★';
 }
-dbg('DISTO Logger — command explorer + auto scanner.');
+dbg('DISTO Logger — Distocom protocol active. SHOOT = raiseEvent 10\\r\\n');
 </script>
 </body>
 </html>
