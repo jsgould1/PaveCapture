@@ -86,6 +86,10 @@ select,input,textarea{font-size:16px !important;}
   <div id="top-bar">
     <div class="brand">DISTO Logger<span>Leica X3</span></div>
     <div class="top-spacer"></div>
+    <select id="unit-pref" onchange="save();renderLog()" style="padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:12px;font-weight:800;">
+      <option value="in">in</option><option value="ft">ft</option><option value="m">m</option><option value="mm">mm</option>
+    </select>
+    <button id="laser-btn" class="top-btn" onclick="laserToggle()" style="display:none;color:var(--red);border-color:var(--red)">🔴</button>
     <span id="meas-count" style="font-size:12px;color:var(--accent);font-weight:800">0</span>
     <button class="top-btn" onclick="toggleDebug()">🔧</button>
     <button class="top-btn" onclick="exportLog()">📤</button>
@@ -108,7 +112,6 @@ select,input,textarea{font-size:16px !important;}
     <button class="cmd-btn" onclick="sendDistocom('raiseEvent 1\r\n')" title="raiseEvent: ! (accepted, no meas)">re1</button>
     <button class="cmd-btn" onclick="sendDistocom('raiseEvent 2\r\n')" title="raiseEvent: ! (accepted, no meas)">re2</button>
     <button class="cmd-btn" onclick="sendDistocom('raiseEvent 3\r\n')" title="raiseEvent: ! (accepted, no meas)">re3</button>
-    <button class="cmd-btn" style="background:rgba(139,92,246,.2);border-color:#8b5cf6;color:#8b5cf6" onclick="runDiagnostics()" title="Read IMU chars, try enable commands, battery check">🔬 IMU Diag</button>
     <button class="cmd-btn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="runAutoScan()" title="Auto-scan all command formats">🔍 AUTO SCAN</button>
     <button class="cmd-btn" onclick="stopAutoScan()">⏹ Stop</button>
     <div id="scan-status" style="font-size:10px;color:var(--accent);font-weight:700;width:100%;margin-top:4px"></div>
@@ -219,14 +222,13 @@ async function connectDisto(){
     for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].uuid.startsWith('3ab10120')){_cmdChar=allChars[wi];dbg('✓ Distocom RX char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}
     if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
     if(!_cmdChar)dbg('⚠ No writable char');
-    try{var bs=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var bc=await bs.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var bv=await bc.readValue();dbg('Battery: '+bv.getUint8(0)+'%');}catch(e){}
     _connected=true;
-    if(_cmdChar){document.getElementById('cmd-bar').style.display='flex';document.getElementById('edge-drop-btn').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');}
+    if(_cmdChar){document.getElementById('cmd-bar').style.display='flex';document.getElementById('edge-drop-btn').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');document.getElementById('laser-btn').style.display='';}
     updateConnectUI('connected','Connected — tap 🎯 SHOOT or 📐 Edge Drop');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
-function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';document.getElementById('edge-drop-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
-function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';document.getElementById('edge-drop-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';document.getElementById('edge-drop-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';document.getElementById('edge-drop-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
 async function shootDisto(){
   await sendDistocom('raiseEvent 10\r\n');
   await new Promise(function(r){setTimeout(r,600);});
@@ -276,7 +278,7 @@ function onMeasurement(event){
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
     if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
     if(_calActive){onCalMeasurement(dist);return;}
-    addMeasurement(dist,'m','DISTO BLE');return;}}
+    var pu=prefUnit();var pv=convertFromM(dist,pu);addMeasurement(pv,pu,'DISTO BLE');return;}}
   if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
     if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(mm/1000);return;}
     addMeasurement(mm,'mm','DISTO BLE');return;}}
@@ -287,6 +289,17 @@ function updateConnectUI(state,text){var btn=document.getElementById('connect-bt
 function armTag(tag){_armedTag=(_armedTag===tag)?'':tag;updateArmUI();}
 function updateArmUI(){var a=document.getElementById('btn-tag-a'),b=document.getElementById('btn-tag-b');a.textContent=_armedTag==='a'?'▶ A ARMED':'A Next';b.textContent=_armedTag==='b'?'▶ B ARMED':'B Next';a.style.borderWidth=_armedTag==='a'?'3px':'1px';b.style.borderWidth=_armedTag==='b'?'3px':'1px';}
 function curStation(){var el=document.getElementById('station-input');return el?el.value.trim():'';}
+function prefUnit(){var el=document.getElementById('unit-pref');return el?el.value:'in';}
+function convertFromM(m,u){if(u==='m')return m;if(u==='mm')return m*1000;if(u==='ft')return m*3.2808399;if(u==='in')return m*39.3701;return m;}
+var _laserCooldown=false;
+function laserToggle(){
+  if(_laserCooldown||!_cmdChar)return;
+  sendDistocom('raiseEvent 10\r\n');
+  _laserCooldown=true;
+  var btn=document.getElementById('laser-btn');
+  btn.style.opacity='0.4';btn.style.cursor='not-allowed';
+  var sec=30,iv=setInterval(function(){sec--;btn.textContent='🔴'+sec;if(sec<=0){clearInterval(iv);_laserCooldown=false;btn.textContent='🔴';btn.style.opacity='';btn.style.cursor='pointer';}},1000);
+}
 function addMeasurement(value,unit,source){
   var autoTag=_armedTag;if(autoTag){MEAS.forEach(function(m){if(m.tag===autoTag)m.tag='';});_armedTag='';updateArmUI();}
   MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:value,unit:unit||'m',label:'',tag:autoTag,station:curStation(),lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:source||'Manual',ts:new Date().toISOString()});
@@ -479,84 +492,6 @@ function resetEdgeBtn(){
   btn.style.background='linear-gradient(135deg,var(--blue),var(--accent))';
   btn.style.color='#fff';
 }
-async function runDiagnostics(){
-  if(!_server||!_connected){alert('Connect first');return;}
-  dbg('═══ IMU / SENSOR DIAGNOSTICS ═══');
-  var svc;
-  try{svc=await _server.getPrimaryService(DISTO_SVC);}catch(e){dbg('✕ Service error: '+e.message);return;}
-  var imuChars={'3ab1010f':'P2P Angles (12B)','3ab10110':'Quaternion (18B)','3ab10111':'Accel/Gyro (20B)','3ab10112':'Magnetometer (14B)','3ab1010d':'Last Measurement (20B)'};
-  dbg('— Reading IMU characteristics —');
-  for(var uuid in imuChars){
-    try{
-      var c=await svc.getCharacteristic(uuid+'-f831-4395-b29d-570977d5bf94');
-      var v=await c.readValue();
-      var hex=dataViewToHex(v);
-      var allZero=true;for(var i=0;i<v.byteLength;i++){if(v.getUint8(i)!==0){allZero=false;break;}}
-      var floats=[];for(var fi=0;fi+3<v.byteLength;fi+=4){floats.push(v.getFloat32(fi,true).toFixed(4));}
-      dbg('  '+uuid.slice(4,12)+' '+imuChars[uuid]+': '+hex+(allZero?' [ALL ZEROS]':'')+' floats=['+floats.join(', ')+']');
-    }catch(e){dbg('  '+uuid.slice(4,12)+': '+e.message);}
-  }
-  dbg('— Trying Distocom IMU/sensor commands —');
-  var cmds=['getInclination','getAngle','getTilt','getP2P','getIMU','getSensor',
-    'enableIMU','enableTilt','enableSensor','setP2P 1','setTilt 1',
-    'getBattery','getBattLevel','getCharge','getPower',
-    'getConfig','getMode','getVersion','getFirmware','getDeviceName',
-    'raiseEvent 4','raiseEvent 5','raiseEvent 6','raiseEvent 7','raiseEvent 8','raiseEvent 9',
-    'raiseEvent 11','raiseEvent 12','raiseEvent 20','raiseEvent 100'];
-  for(var ci=0;ci<cmds.length;ci++){
-    var cmd=cmds[ci];
-    try{
-      var bytes=[];for(var bi=0;bi<cmd.length;bi++)bytes.push(cmd.charCodeAt(bi));
-      bytes.push(13,10);
-      await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
-      await new Promise(function(r){setTimeout(r,400);});
-      try{
-        var resp=await svc.getCharacteristic('3ab10121-f831-4395-b29d-570977d5bf94');
-        var rv=await resp.readValue();
-        var rtxt='';try{rtxt=new TextDecoder().decode(rv);}catch(e){rtxt=dataViewToHex(rv);}
-        rtxt=rtxt.replace(/\r/g,'\\r').replace(/\n/g,'\\n');
-        if(rtxt.indexOf('UNKNOWN')===-1&&rtxt.indexOf('INVALID')===-1){
-          dbg('  ★ '+cmd+' → '+rtxt);
-        }else{
-          dbg('  · '+cmd+' → '+rtxt);
-        }
-      }catch(e){dbg('  · '+cmd+' → (no read)');}
-    }catch(e){dbg('  ✕ '+cmd+': '+e.message);}
-  }
-  dbg('— Post-command IMU re-read —');
-  for(var uuid2 in imuChars){
-    if(uuid2==='3ab1010d')continue;
-    try{
-      var c2=await svc.getCharacteristic(uuid2+'-f831-4395-b29d-570977d5bf94');
-      var v2=await c2.readValue();
-      var hex2=dataViewToHex(v2);
-      var allZero2=true;for(var j=0;j<v2.byteLength;j++){if(v2.getUint8(j)!==0){allZero2=false;break;}}
-      if(!allZero2){
-        var floats2=[];for(var fi2=0;fi2+3<v2.byteLength;fi2+=4){floats2.push(v2.getFloat32(fi2,true).toFixed(4));}
-        dbg('  ★ '+uuid2.slice(4,12)+': '+hex2+' floats=['+floats2.join(', ')+']');
-      }else{dbg('  '+uuid2.slice(4,12)+': still zeros');}
-    }catch(e){}
-  }
-  dbg('— Fire measurement then read IMU —');
-  try{
-    await sendDistocom('raiseEvent 10\r\n');
-    await new Promise(function(r){setTimeout(r,600);});
-    await sendDistocom('raiseEvent 10\r\n');
-    await new Promise(function(r){setTimeout(r,1500);});
-    for(var uuid3 in imuChars){
-      try{
-        var c3=await svc.getCharacteristic(uuid3+'-f831-4395-b29d-570977d5bf94');
-        var v3=await c3.readValue();
-        var hex3=dataViewToHex(v3);
-        var allZero3=true;for(var k=0;k<v3.byteLength;k++){if(v3.getUint8(k)!==0){allZero3=false;break;}}
-        var floats3=[];for(var fi3=0;fi3+3<v3.byteLength;fi3+=4){floats3.push(v3.getFloat32(fi3,true).toFixed(4));}
-        dbg('  '+(allZero3?'':'★ ')+uuid3.slice(4,12)+': '+hex3+(allZero3?' [ZEROS]':'')+' floats=['+floats3.join(', ')+']');
-      }catch(e){}
-    }
-  }catch(e){dbg('  Measure+read failed: '+e.message);}
-  dbg('═══ DIAGNOSTICS COMPLETE ═══');
-  dbg('Look for ★ = non-zero / recognized commands above.');
-}
 load();renderLog();updateCalc();startGPS();
 var _scanning=false;
 function stopAutoScan(){_scanning=false;dbg('⏹ Scan stopped');document.getElementById('scan-status').textContent='Stopped';}
@@ -618,7 +553,7 @@ async function runAutoScan(){
   dbg('═══ SCAN COMPLETE ═══');
   document.getElementById('scan-status').textContent='Done — check debug for ★';
 }
-dbg('DISTO Logger — Calibrate mode + station tracking.');
+dbg('DISTO Logger ready.');
 </script>
 </body>
 </html>
