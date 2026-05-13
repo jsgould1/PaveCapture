@@ -90,29 +90,13 @@ select,input,textarea{font-size:16px !important;}
     <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
   </div>
   <div id="cmd-bar" style="display:none;background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;gap:4px">
-    <span style="font-size:10px;color:var(--accent);font-weight:800;width:100%;margin-bottom:2px">— Distocom protocol (ASCII on 3ab10120) —</span>
-    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getBrand\r\n')" title="Test — response on 3ab10121">getBrand</button>
-    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getSerial\r\n')">getSerial</button>
-    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('o\r\n')" title="Laser on">🔴 laserOn</button>
-    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('p\r\n')" title="Laser off">⚫ laserOff</button>
-    <button class="cmd-btn" style="background:rgba(245,158,11,.3);border-color:var(--accent);color:var(--accent);font-weight:900" onclick="sendDistocom('raiseEvent 10\r\n')" title="Trigger measurement">🎯 raiseEvent 10</button>
-    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 1\r\n')">re1</button>
-    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 2\r\n')">re2</button>
-    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 3\r\n')">re3</button>
-    <button class="cmd-btn" onclick="sendDistocom('getMeasure\r\n')">getMeasure</button>
-    <button class="cmd-btn" onclick="sendDistocom('getDistance\r\n')">getDistance</button>
-    <button class="cmd-btn" onclick="sendDistocom('startMeas\r\n')">startMeas</button>
-    <span style="font-size:10px;color:var(--muted);font-weight:800;width:100%;margin-top:6px;margin-bottom:2px">— Legacy single-byte (fallback) —</span>
-    <button class="cmd-btn" onclick="sendCmd(0x61)" title="0x61 'a'">a</button>
-    <button class="cmd-btn" onclick="sendCmd(0x63)">c</button>
-    <button class="cmd-btn" onclick="sendCmd(0x64)">d</button>
-    <button class="cmd-btn" onclick="sendCmd(0x65)">e</button>
-    <button class="cmd-btn" onclick="sendCmd(0x66)">f</button>
-    <button class="cmd-btn" onclick="sendCmd(0x67)">g</button>
-    <button class="cmd-btn" onclick="sendCmd(0x6F)" title="laser on">o</button>
-    <button class="cmd-btn" onclick="sendCmd(0x70)" title="laser off">p</button>
-    <button class="cmd-btn" onclick="sendCmd(0x73)">s</button>
-    <button class="cmd-btn" onclick="sendCmd(0x74)">t</button>
+    <span style="font-size:10px;color:var(--accent);font-weight:800;width:100%;margin-bottom:2px">— Distocom (confirmed working) —</span>
+    <button class="cmd-btn" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)" onclick="sendDistocom('getBrand\r\n')" title="Returns getBrand:LEICA — confirms comms">getBrand ✓</button>
+    <button class="cmd-btn" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)" onclick="sendDistocom('raiseEvent 10\r\n')" title="1st press=laser on, 2nd press=measure">🔴 Laser ON (1×)</button>
+    <button class="cmd-btn" style="background:rgba(245,158,11,.3);border-color:var(--accent);color:var(--accent);font-weight:900" onclick="shootDisto()" title="Laser on → 600ms → fire = full measure cycle">🎯 Full Shoot (2×)</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 1\r\n')" title="raiseEvent: ! (accepted, no meas)">re1</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 2\r\n')" title="raiseEvent: ! (accepted, no meas)">re2</button>
+    <button class="cmd-btn" onclick="sendDistocom('raiseEvent 3\r\n')" title="raiseEvent: ! (accepted, no meas)">re3</button>
     <button class="cmd-btn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="runAutoScan()" title="Auto-scan all command formats">🔍 AUTO SCAN</button>
     <button class="cmd-btn" onclick="stopAutoScan()">⏹ Stop</button>
     <div id="scan-status" style="font-size:10px;color:var(--accent);font-weight:700;width:100%;margin-top:4px"></div>
@@ -126,8 +110,8 @@ select,input,textarea{font-size:16px !important;}
       2. Turn on Bluetooth on the DISTO (App mode, not Keyboard)<br>
       3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
       4. If Chrome shows a pairing prompt, <b>accept it</b><br>
-      5. Tap <b>🎯 SHOOT</b> or press measure on the DISTO<br><br>
-      <b style="color:var(--accent)">Tip:</b> Use <b>getBrand</b> button to test command channel — response appears in 🔧 debug log.<br><br>
+      5. Tap <b>🎯 SHOOT</b> — laser turns on, fires after 600ms, measurement auto-logs<br><br>
+      <b style="color:var(--accent)">Tip:</b> Use <b>getBrand ✓</b> to verify comms. <b>🔴 Laser ON</b> to aim first without measuring.<br><br>
       Manual entry also works below. <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> pre-tags for drop-off.</p>
     </div>
     <div id="log-rows"></div>
@@ -204,12 +188,17 @@ async function connectDisto(){
     try{var bs=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var bc=await bs.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var bv=await bc.readValue();dbg('Battery: '+bv.getUint8(0)+'%');}catch(e){}
     _connected=true;
     if(_cmdChar)document.getElementById('cmd-bar').style.display='flex';
-    updateConnectUI('connected','Connected — tap SHOOT or press measure on DISTO');
+    updateConnectUI('connected','Connected — tap 🎯 SHOOT (laser on → auto-fire) or press measure on DISTO');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
 function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
 function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
-async function shootDisto(){await sendDistocom('raiseEvent 10\r\n');}
+async function shootDisto(){
+  // raiseEvent 10 mimics the physical button: 1st = laser on, 2nd = fire+measure
+  await sendDistocom('raiseEvent 10\r\n');
+  await new Promise(function(r){setTimeout(r,600);});
+  await sendDistocom('raiseEvent 10\r\n');
+}
 async function sendDistocom(str){
   if(!_cmdChar){alert('Not connected');return;}
   var bytes=[];for(var i=0;i<str.length;i++)bytes.push(str.charCodeAt(i));
@@ -371,7 +360,7 @@ async function runAutoScan(){
   dbg('═══ SCAN COMPLETE ═══');
   document.getElementById('scan-status').textContent='Done — check debug for ★';
 }
-dbg('DISTO Logger — Distocom protocol active. SHOOT = raiseEvent 10\\r\\n');
+dbg('DISTO Logger — Distocom protocol active. SHOOT = raiseEvent 10 x2 (600ms apart)');
 </script>
 </body>
 </html>
