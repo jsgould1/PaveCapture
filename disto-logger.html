@@ -88,6 +88,7 @@ select,input,textarea{font-size:16px !important;}
     </button>
     <span id="connect-status">Unpair from Windows first, then connect here</span>
     <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
+    <button id="edge-drop-btn" onclick="measureEdgeDrop()" style="display:none;padding:12px 20px;border-radius:12px;border:none;font-size:14px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Measure Edge Drop</button>
   </div>
   <div id="cmd-bar" style="display:none;background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;gap:4px">
     <span style="font-size:10px;color:var(--accent);font-weight:800;width:100%;margin-bottom:2px">— Distocom (confirmed working) —</span>
@@ -145,12 +146,13 @@ select,input,textarea{font-size:16px !important;}
 <script>
 var MEAS=[],_lat=null,_lng=null,_nextNum=1,_armedTag='';
 var _device=null,_server=null,_cmdChar=null,_connected=false;
+var _pendingMeasResolve=null,_edgeDropActive=false;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
 var DISTO_DIST='3ab10101-f831-4395-b29d-570977d5bf94';
-var DISTO_CMD_RX='3ab10120-f831-4395-b29d-570977d5bf94'; // Distocom receive — write ASCII cmds here
-var DISTO_CMD_TX='3ab10121-f831-4395-b29d-570977d5bf94'; // Distocom transmit — text responses
-var DISTO_EVT='3ab10122-f831-4395-b29d-570977d5bf94';   // event notifications
+var DISTO_CMD_RX='3ab10120-f831-4395-b29d-570977d5bf94';
+var DISTO_CMD_TX='3ab10121-f831-4395-b29d-570977d5bf94';
+var DISTO_EVT='3ab10122-f831-4395-b29d-570977d5bf94';
 var LS='distologger_v1';
 function save(){try{localStorage.setItem(LS,JSON.stringify({meas:MEAS,nextNum:_nextNum}));}catch(e){}}
 function load(){try{var r=localStorage.getItem(LS);if(r){var d=JSON.parse(r);MEAS=d.meas||[];_nextNum=d.nextNum||MEAS.length+1;}}catch(e){}}
@@ -187,14 +189,13 @@ async function connectDisto(){
     if(!_cmdChar)dbg('⚠ No writable char');
     try{var bs=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var bc=await bs.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var bv=await bc.readValue();dbg('Battery: '+bv.getUint8(0)+'%');}catch(e){}
     _connected=true;
-    if(_cmdChar)document.getElementById('cmd-bar').style.display='flex';
-    updateConnectUI('connected','Connected — tap 🎯 SHOOT (laser on → auto-fire) or press measure on DISTO');
+    if(_cmdChar){document.getElementById('cmd-bar').style.display='flex';document.getElementById('edge-drop-btn').style.display='inline-flex';}
+    updateConnectUI('connected','Connected — tap 🎯 SHOOT or 📐 Edge Drop');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
-function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
-function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';document.getElementById('edge-drop-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';document.getElementById('edge-drop-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
 async function shootDisto(){
-  // raiseEvent 10 mimics the physical button: 1st = laser on, 2nd = fire+measure
   await sendDistocom('raiseEvent 10\r\n');
   await new Promise(function(r){setTimeout(r,600);});
   await sendDistocom('raiseEvent 10\r\n');
@@ -231,20 +232,21 @@ async function sendMulti(bytes){
 function onMeasurement(event){
   var raw=event.target.value;
   var uuid=event.target.uuid||'';
-  // Distocom text responses (3ab10121)
   if(uuid.startsWith('3ab10121')){
     try{var txt=new TextDecoder().decode(raw);dbg('Distocom TX: "'+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'"');}catch(e){dbg('Distocom TX (raw): '+dataViewToHex(raw));}
     return;
   }
-  // Event channel (3ab10122)
   if(uuid.startsWith('3ab10122')){
     dbg('Event ('+uuid.slice(0,10)+'): '+dataViewToHex(raw));
     return;
   }
-  // Measurement data
   dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
-  if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');addMeasurement(dist,'m','DISTO BLE');return;}}
-  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');addMeasurement(mm,'mm','DISTO BLE');return;}}
+  if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
+    if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
+    addMeasurement(dist,'m','DISTO BLE');return;}}
+  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
+    if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(mm/1000);return;}
+    addMeasurement(mm,'mm','DISTO BLE');return;}}
   dbg('Raw data (not parsed as measurement)');
 }
 function dataViewToHex(dv){var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));return h.join(' ');}
@@ -299,6 +301,60 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
 function ds(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function dl(c,n,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}
+function waitForMeasurement(ms){
+  return new Promise(function(resolve,reject){
+    _pendingMeasResolve=resolve;
+    var t=setTimeout(function(){if(_pendingMeasResolve===resolve){_pendingMeasResolve=null;reject(new Error('Timeout'));}},ms||10000);
+  });
+}
+async function measureEdgeDrop(){
+  if(!_cmdChar){alert('Connect DISTO first');return;}
+  if(_edgeDropActive)return;
+  _edgeDropActive=true;
+  var btn=document.getElementById('edge-drop-btn');
+  var status=document.getElementById('connect-status');
+  try{
+    btn.textContent='📏 A: Pavement…';btn.style.background='var(--blue)';btn.style.color='#fff';
+    status.textContent='Step 1/2 — Aim at PAVEMENT edge, firing laser…';
+    var promA=waitForMeasurement(10000);
+    await shootDisto();
+    var distA=await promA;
+    dbg('Edge A (pavement): '+distA.toFixed(4)+' m');
+    btn.textContent='⏳ Reposition → 2s…';btn.style.background='var(--accent)';btn.style.color='#000';
+    status.textContent='Step 2/2 — Move DISTO to SHOULDER edge, measuring in 2s…';
+    await new Promise(function(r){setTimeout(r,2000);});
+    btn.textContent='📏 B: Shoulder…';btn.style.background='var(--accent)';
+    status.textContent='Step 2/2 — Measuring shoulder…';
+    var promB=waitForMeasurement(10000);
+    await shootDisto();
+    var distB=await promB;
+    dbg('Edge B (shoulder): '+distB.toFixed(4)+' m');
+    var dropM=distA-distB;
+    var dropIn=dropM*39.3701;
+    dbg('Edge Drop: '+distA.toFixed(4)+' - '+distB.toFixed(4)+' = '+dropM.toFixed(4)+' m = '+dropIn.toFixed(2)+' in');
+    MEAS.forEach(function(m){if(m.tag==='a'||m.tag==='b')m.tag='';});
+    MEAS.push({id:'m'+Date.now()+'ea',num:_nextNum++,value:distA,unit:'m',label:'Pavement (A)',tag:'a',lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'DISTO Edge',ts:new Date().toISOString()});
+    MEAS.push({id:'m'+Date.now()+'eb',num:_nextNum++,value:distB,unit:'m',label:'Shoulder (B)',tag:'b',lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'DISTO Edge',ts:new Date().toISOString()});
+    MEAS.push({id:'m'+Date.now()+'ed',num:_nextNum++,value:Math.abs(dropIn),unit:'in',label:'Edge drop-off',tag:'',lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Edge Drop (A−B)',ts:new Date().toISOString()});
+    save();renderLog();updateCalc();
+    btn.textContent='✓ Drop: '+Math.abs(dropIn).toFixed(2)+' in';btn.style.background='var(--green)';btn.style.color='#000';
+    status.textContent='Edge drop-off: '+Math.abs(dropIn).toFixed(2)+' in  (A='+distA.toFixed(4)+'m  B='+distB.toFixed(4)+'m)';
+    setTimeout(function(){resetEdgeBtn();},5000);
+  }catch(e){
+    dbg('Edge Drop failed: '+e.message);
+    btn.textContent='✕ '+e.message;btn.style.background='var(--red)';btn.style.color='#fff';
+    status.textContent='Edge drop failed — '+e.message;
+    _pendingMeasResolve=null;
+    setTimeout(function(){resetEdgeBtn();},3000);
+  }
+  _edgeDropActive=false;
+}
+function resetEdgeBtn(){
+  var btn=document.getElementById('edge-drop-btn');
+  btn.textContent='📐 Measure Edge Drop';
+  btn.style.background='linear-gradient(135deg,var(--blue),var(--accent))';
+  btn.style.color='#fff';
+}
 load();renderLog();updateCalc();startGPS();
 var _scanning=false;
 function stopAutoScan(){_scanning=false;dbg('⏹ Scan stopped');document.getElementById('scan-status').textContent='Stopped';}
