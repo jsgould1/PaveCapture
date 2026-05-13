@@ -186,7 +186,7 @@ function startGPS(){if(!navigator.geolocation)return;navigator.geolocation.watch
   _lastGpsLat=nlat;_lastGpsLng=nlng;_lat=nlat;_lng=nlng;
 },function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});}
 function haversine(a1,o1,a2,o2){var R=6371000,r=Math.PI/180,d1=a1*r,d2=a2*r,dl=(a2-a1)*r,do2=(o2-o1)*r;var a=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(d1)*Math.cos(d2)*Math.sin(do2/2)*Math.sin(do2/2);return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-function fmtStation(ft){var h=Math.floor(ft/100);var r=Math.round(ft%100);return h+'+'+String(r).padStart(2,'0');}
+function fmtStation(ft){var h=Math.floor(ft/100);var r=Math.round(ft%100);return String(h)+'+'+String(r).padStart(2,'0');}
 function toggleAutoStation(){if(document.getElementById('auto-station').checked){_stationFt=0;_lastGpsLat=_lat;_lastGpsLng=_lng;document.getElementById('station-input').value='0+00';}}
 async function toggleConnection(){if(_connected){disconnect();return;}await connectDisto();}
 async function connectDisto(){
@@ -370,16 +370,56 @@ function clearCalibrate(){
   document.getElementById('connect-status').textContent='Connected — calibrate cleared';
   dbg('Calibrate cleared');
 }
-function onCalMeasurement(distM){
+async function onCalMeasurement(distM){
   var calIn=_calRef*39.3701;
   var measIn=distM*39.3701;
   var dropIn=calIn-measIn;
   dbg('Cal drop: ref '+calIn.toFixed(2)+' - meas '+measIn.toFixed(2)+' = '+dropIn.toFixed(2)+' in');
   var sta=curStation();
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:Math.abs(dropIn),unit:'in',label:'Edge drop-off'+(dropIn<0?' (rise)':''),tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Cal Drop (ref−B)',ts:new Date().toISOString(),rawM:distM,calRefM:_calRef});
+  var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
+  if(!autoSta){sta=await promptStation(sta);}
+  var lbl=(dropIn<0?'rise':'drop')+' (ref:'+calIn.toFixed(1)+'" B:'+measIn.toFixed(1)+'")';
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:Math.abs(dropIn),unit:'in',label:lbl,tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Cal Drop',ts:new Date().toISOString(),rawM:distM,calRefM:_calRef});
   save();renderLog();updateCalc();
-  document.getElementById('connect-status').textContent='Drop: '+Math.abs(dropIn).toFixed(2)+' in'+(dropIn<0?' (rise)':'')+' at Sta '+sta;
+  document.getElementById('connect-status').textContent='Drop: '+Math.abs(dropIn).toFixed(2)+' in at Sta '+sta;
   setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+}
+function parseStation(raw){
+  var digits=raw.replace(/[^0-9]/g,'');
+  if(!digits)return '';
+  digits=digits.padStart(2,'0');
+  var r=digits.slice(-2);
+  var h=digits.slice(0,-2)||'0';
+  return h+'+'+r;
+}
+function promptStation(defaultVal){
+  return new Promise(function(resolve){
+    var overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:20px;width:280px;text-align:center;';
+    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--accent);margin-bottom:12px">Enter Station</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:10px">Type digits only — auto-formats as xx+xx</div>'
+      +'<input id="sta-prompt-input" type="tel" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px;font-size:24px;font-weight:900;text-align:center;background:var(--bg);border:2px solid var(--border);border-radius:12px;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:2px;" placeholder="0000">'
+      +'<div id="sta-prompt-preview" style="font-size:18px;font-weight:800;color:var(--accent);margin:10px 0;height:24px"></div>'
+      +'<div style="display:flex;gap:8px;justify-content:center">'
+      +'<button id="sta-prompt-ok" style="padding:12px 24px;border-radius:10px;border:none;font-size:14px;font-weight:900;cursor:pointer;background:var(--green);color:#000;">OK</button>'
+      +'<button id="sta-prompt-skip" style="padding:12px 24px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--muted);border:1px solid var(--border);">Skip</button>'
+      +'</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var inp=document.getElementById('sta-prompt-input');
+    var preview=document.getElementById('sta-prompt-preview');
+    var defDigits=defaultVal.replace(/[^0-9]/g,'');
+    inp.value=defDigits;
+    preview.textContent=parseStation(defDigits);
+    inp.addEventListener('input',function(){preview.textContent=parseStation(inp.value);});
+    function finish(val){document.body.removeChild(overlay);var s=parseStation(val);document.getElementById('station-input').value=s;resolve(s);}
+    document.getElementById('sta-prompt-ok').onclick=function(){finish(inp.value);};
+    document.getElementById('sta-prompt-skip').onclick=function(){finish(inp.value||defDigits);};
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();finish(inp.value);}});
+    setTimeout(function(){inp.focus();inp.select();},100);
+  });
 }
 function waitForMeasurement(ms){
   return new Promise(function(resolve,reject){
@@ -411,15 +451,17 @@ async function measureEdgeDrop(){
     dbg('Edge B (shoulder): '+distB.toFixed(4)+' m');
     var dropM=distA-distB;
     var dropIn=dropM*39.3701;
-    dbg('Edge Drop: '+distA.toFixed(4)+' - '+distB.toFixed(4)+' = '+dropM.toFixed(4)+' m = '+dropIn.toFixed(2)+' in');
+    var aIn=(distA*39.3701).toFixed(2);
+    var bIn=(distB*39.3701).toFixed(2);
+    dbg('Edge Drop: A='+aIn+'" B='+bIn+'" drop='+dropIn.toFixed(2)+'"');
     var sta=curStation();
+    var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
+    if(!autoSta){sta=await promptStation(sta);}
     MEAS.forEach(function(m){if(m.tag==='a'||m.tag==='b')m.tag='';});
-    MEAS.push({id:'m'+Date.now()+'ea',num:_nextNum++,value:distA,unit:'m',label:'Pavement (A)',tag:'a',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'DISTO Edge',ts:new Date().toISOString()});
-    MEAS.push({id:'m'+Date.now()+'eb',num:_nextNum++,value:distB,unit:'m',label:'Shoulder (B)',tag:'b',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'DISTO Edge',ts:new Date().toISOString()});
-    MEAS.push({id:'m'+Date.now()+'ed',num:_nextNum++,value:Math.abs(dropIn),unit:'in',label:'Edge drop-off',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Edge Drop (A−B)',ts:new Date().toISOString()});
+    MEAS.push({id:'m'+Date.now()+'ed',num:_nextNum++,value:Math.abs(dropIn),unit:'in',label:'A:'+aIn+'" B:'+bIn+'"',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Edge Drop',ts:new Date().toISOString(),rawA:distA,rawB:distB});
     save();renderLog();updateCalc();
     btn.textContent='✓ Drop: '+Math.abs(dropIn).toFixed(2)+' in';btn.style.background='var(--green)';btn.style.color='#000';
-    status.textContent='Edge drop-off: '+Math.abs(dropIn).toFixed(2)+' in  (A='+distA.toFixed(4)+'m  B='+distB.toFixed(4)+'m)';
+    status.textContent='Edge drop-off: '+Math.abs(dropIn).toFixed(2)+' in at Sta '+sta;
     setTimeout(function(){resetEdgeBtn();},5000);
   }catch(e){
     dbg('Edge Drop failed: '+e.message);
@@ -497,7 +539,7 @@ async function runAutoScan(){
   dbg('═══ SCAN COMPLETE ═══');
   document.getElementById('scan-status').textContent='Done — check debug for ★';
 }
-dbg('DISTO Logger — Calibrate mode + station tracking. SHOOT = raiseEvent 10 x2.');
+dbg('DISTO Logger — Calibrate mode + station tracking.');
 </script>
 </body>
 </html>
