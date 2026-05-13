@@ -62,6 +62,10 @@ select,input,textarea{font-size:16px !important;}
 #manual-input:focus{border-color:var(--accent);outline:none;}
 #manual-unit{padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;min-width:60px;}
 .bottom-btn{padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:800;cursor:pointer;}
+#cmd-bar{display:flex;}
+.cmd-btn{padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.cmd-btn:hover{border-color:var(--accent);color:var(--accent);}
+.cmd-btn:active{background:var(--accent);color:#000;transform:scale(.95);}
 #debug-panel{display:none;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px;max-height:200px;overflow-y:auto;flex-shrink:0;}
 #debug-panel.show{display:block;}
 #debug-log{font-family:'Cascadia Code','Consolas',monospace;font-size:11px;color:var(--muted);white-space:pre-wrap;line-height:1.6;}
@@ -85,6 +89,29 @@ select,input,textarea{font-size:16px !important;}
     <span id="connect-status">Unpair from Windows first, then connect here</span>
     <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
   </div>
+  <div id="cmd-bar" style="display:none;background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;gap:4px">
+    <button class="cmd-btn" onclick="sendCmd(0x61)" title="0x61 'a' — Power On">⚡ On</button>
+    <button class="cmd-btn" onclick="sendCmd(0x63)" title="0x63 'c' — Continuous">📡 Cont</button>
+    <button class="cmd-btn" onclick="sendCmd(0x64)" title="0x64 'd' — Distance?">📏 d</button>
+    <button class="cmd-btn" onclick="sendCmd(0x65)" title="0x65 'e'">e</button>
+    <button class="cmd-btn" onclick="sendCmd(0x66)" title="0x66 'f'">f</button>
+    <button class="cmd-btn" onclick="sendCmd(0x67)" title="0x67 'g' — Trigger (D2)">🎯 g</button>
+    <button class="cmd-btn" onclick="sendCmd(0x68)" title="0x68 'h'">h</button>
+    <button class="cmd-btn" onclick="sendCmd(0x69)" title="0x69 'i'">i</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6A)" title="0x6A 'j'">j</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6B)" title="0x6B 'k'">k</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6C)" title="0x6C 'l'">l</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6D)" title="0x6D 'm'">m</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6E)" title="0x6E 'n'">n</button>
+    <button class="cmd-btn" onclick="sendCmd(0x6F)" title="0x6F 'o' — Laser On">🔴 o</button>
+    <button class="cmd-btn" onclick="sendCmd(0x70)" title="0x70 'p' — Laser Off">⚫ p</button>
+    <button class="cmd-btn" onclick="sendCmd(0x71)" title="0x71 'q'">q</button>
+    <button class="cmd-btn" onclick="sendCmd(0x72)" title="0x72 'r'">r</button>
+    <button class="cmd-btn" onclick="sendCmd(0x73)" title="0x73 's' — Stop?">s</button>
+    <button class="cmd-btn" onclick="sendCmd(0x74)" title="0x74 't'">t</button>
+    <button class="cmd-btn" onclick="sendMulti([0x63,0x66,0x62,0x20,0x30])" title="'cfb 0' — No Confirm">cfb 0</button>
+    <button class="cmd-btn" onclick="sendMulti([0x63,0x66,0x6D])" title="'cfm' — Record Confirm">cfm</button>
+  </div>
   <div id="log-area">
     <div id="empty-state">
       <div class="es-icon">📏</div>
@@ -94,7 +121,7 @@ select,input,textarea{font-size:16px !important;}
       2. Turn on Bluetooth on the DISTO (App mode, not Keyboard)<br>
       3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
       4. If Chrome shows a pairing prompt, <b>accept it</b><br>
-      5. Once connected, tap <b style="color:var(--red)">🎯 SHOOT</b> or press measure on DISTO<br><br>
+      5. Once connected, try the command buttons to find the trigger<br><br>
       Manual entry also works below. <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> pre-tags for drop-off.</p>
     </div>
     <div id="log-rows"></div>
@@ -142,7 +169,6 @@ async function connectDisto(){
   if(!navigator.bluetooth){alert('Use Chrome or Edge on Windows.');return;}
   updateConnectUI('connecting','Scanning…');
   dbg('Requesting DISTO…');
-  dbg('IMPORTANT: DISTO must NOT be paired via Windows Bluetooth.');
   try{
     _device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'DISTO'},{namePrefix:'Leica'},{namePrefix:'disto'}],optionalServices:[DISTO_SVC,'0000180a-0000-1000-8000-00805f9b34fb','0000180f-0000-1000-8000-00805f9b34fb']});
     dbg('Selected: '+_device.name);
@@ -153,40 +179,55 @@ async function connectDisto(){
     var svc;
     try{svc=await _server.getPrimaryService(DISTO_SVC);dbg('✓ Leica service found!');}catch(e){
       dbg('✕ Leica service NOT found: '+e.message);
-      try{var allSvc=await _server.getPrimaryServices();dbg('Services ('+allSvc.length+'):');for(var i=0;i<allSvc.length;i++){dbg('  '+allSvc[i].uuid);try{var chars=await allSvc[i].getCharacteristics();for(var j=0;j<chars.length;j++){var p=chars[j].properties;var fl=[];if(p.read)fl.push('R');if(p.write)fl.push('W');if(p.writeWithoutResponse)fl.push('Wn');if(p.notify)fl.push('N');if(p.indicate)fl.push('I');dbg('    '+chars[j].uuid+' ['+fl.join(',')+']');}}catch(ce){}}}catch(se){}
+      try{var allSvc=await _server.getPrimaryServices();dbg('Services:');for(var i=0;i<allSvc.length;i++){dbg('  '+allSvc[i].uuid);}}catch(se){}
       updateConnectUI('disconnected','Leica service not found');return;
     }
     dbg('Enumerating characteristics…');
     var allChars=[];
-    try{
-      allChars=await svc.getCharacteristics();
-      dbg('Found '+allChars.length+' characteristics:');
-      for(var ci=0;ci<allChars.length;ci++){var ch=allChars[ci];var pr=ch.properties;var flags=[];if(pr.read)flags.push('R');if(pr.write)flags.push('W');if(pr.writeWithoutResponse)flags.push('Wn');if(pr.notify)flags.push('N');if(pr.indicate)flags.push('I');dbg('  '+ch.uuid+' ['+flags.join(',')+']');}
-    }catch(enumErr){dbg('Enum error: '+enumErr.message);}
-    dbg('Attempting bonding (reading characteristics)…');
-    for(var bi=0;bi<allChars.length;bi++){if(allChars[bi].properties.read){try{var rv=await allChars[bi].readValue();dbg('  Read '+allChars[bi].uuid+': '+dataViewToHex(rv)+' ('+rv.byteLength+'B)');}catch(re){dbg('  Read '+allChars[bi].uuid+': '+re.message);}}}
-    dbg('Re-enumerating after bonding…');
-    try{allChars=await svc.getCharacteristics();dbg('Now '+allChars.length+' characteristics:');for(var ci2=0;ci2<allChars.length;ci2++){var ch2=allChars[ci2];var pr2=ch2.properties;var fl2=[];if(pr2.read)fl2.push('R');if(pr2.write)fl2.push('W');if(pr2.writeWithoutResponse)fl2.push('Wn');if(pr2.notify)fl2.push('N');if(pr2.indicate)fl2.push('I');dbg('  '+ch2.uuid+' ['+fl2.join(',')+']');}}catch(e2){}
+    try{allChars=await svc.getCharacteristics();dbg('Found '+allChars.length+':');for(var ci=0;ci<allChars.length;ci++){var ch=allChars[ci];var pr=ch.properties;var flags=[];if(pr.read)flags.push('R');if(pr.write)flags.push('W');if(pr.writeWithoutResponse)flags.push('Wn');if(pr.notify)flags.push('N');if(pr.indicate)flags.push('I');dbg('  '+ch.uuid+' ['+flags.join(',')+']');}}catch(ee){dbg('Enum error: '+ee.message);}
+    dbg('Reading chars for bonding…');
+    for(var bi=0;bi<allChars.length;bi++){if(allChars[bi].properties.read){try{var rv=await allChars[bi].readValue();dbg('  '+allChars[bi].uuid+': '+dataViewToHex(rv));}catch(re){dbg('  '+allChars[bi].uuid+': '+re.message);}}}
     var subscribed=false;
-    for(var si=0;si<allChars.length;si++){var sc=allChars[si];if(sc.properties.notify||sc.properties.indicate){try{await sc.startNotifications();sc.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Subscribed '+sc.uuid);subscribed=true;}catch(se){dbg('  Sub '+sc.uuid+': '+se.message);}}}
-    if(!subscribed)dbg('⚠ No subscriptions succeeded');
+    for(var si=0;si<allChars.length;si++){var sc=allChars[si];if(sc.properties.notify||sc.properties.indicate){try{await sc.startNotifications();sc.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Sub '+sc.uuid);subscribed=true;}catch(se){dbg('  Sub '+sc.uuid+': '+se.message);}}}
+    if(!subscribed)dbg('⚠ No subscriptions');
     _cmdChar=null;
-    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse){_cmdChar=allChars[wi];dbg('✓ Write char: '+_cmdChar.uuid+' — SHOOT available!');document.getElementById('shoot-btn').classList.add('ready');break;}if(allChars[wi].properties.write&&!_cmdChar){_cmdChar=allChars[wi];dbg('✓ Write char (resp): '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');}}
-    if(!_cmdChar)dbg('⚠ No writable char — remote trigger unavailable');
-    try{var batSvc=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var batChar=await batSvc.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var batVal=await batChar.readValue();dbg('Battery: '+batVal.getUint8(0)+'%');}catch(e){}
+    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('✓ Write: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}
+    if(!_cmdChar)dbg('⚠ No writable char');
+    try{var bs=await _server.getPrimaryService('0000180f-0000-1000-8000-00805f9b34fb');var bc=await bs.getCharacteristic('00002a19-0000-1000-8000-00805f9b34fb');var bv=await bc.readValue();dbg('Battery: '+bv.getUint8(0)+'%');}catch(e){}
     _connected=true;
-    updateConnectUI('connected','Connected — '+(_cmdChar?'tap 🎯 SHOOT or press measure':'press measure on DISTO'));
+    if(_cmdChar)document.getElementById('cmd-bar').style.display='flex';
+    updateConnectUI('connected','Connected — try command buttons or press measure on DISTO');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
-function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
-function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
-async function shootDisto(){if(!_cmdChar){alert('No command char');return;}dbg('Sending 0x'+TRIGGER_CMD.toString(16)+' to '+_cmdChar.uuid+'…');try{if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array([TRIGGER_CMD]));else await _cmdChar.writeValueWithResponse(new Uint8Array([TRIGGER_CMD]));dbg('✓ Trigger sent');}catch(e){dbg('✕ Trigger failed: '+e.message);}}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('cmd-bar').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+async function shootDisto(){await sendCmd(TRIGGER_CMD);}
+async function sendCmd(byte){
+  if(!_cmdChar){alert('Not connected');return;}
+  dbg('Send 0x'+byte.toString(16)+' ("'+String.fromCharCode(byte)+'") → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array([byte]));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array([byte]));
+    dbg('✓ Sent 0x'+byte.toString(16));
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+async function sendMulti(bytes){
+  if(!_cmdChar){alert('Not connected');return;}
+  var hex=bytes.map(function(b){return '0x'+b.toString(16);}).join(' ');
+  var ascii=bytes.map(function(b){return String.fromCharCode(b);}).join('');
+  dbg('Send ['+hex+'] ("'+ascii+'") → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
+    dbg('✓ Sent '+bytes.length+' bytes');
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
 function onMeasurement(event){
   var raw=event.target.value;
   dbg('Data from '+event.target.uuid+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');addMeasurement(dist,'m','DISTO BLE');return;}}
-  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm ('+(mm/304.8).toFixed(3)+' ft)');addMeasurement(mm,'mm','DISTO BLE');return;}}
-  dbg('Could not parse. Raw: '+dataViewToHex(raw));
+  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');addMeasurement(mm,'mm','DISTO BLE');return;}}
+  dbg('Raw data (not parsed as measurement)');
 }
 function dataViewToHex(dv){var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));return h.join(' ');}
 function updateConnectUI(state,text){var btn=document.getElementById('connect-btn');btn.className=state;document.getElementById('connect-icon').textContent=state==='connected'?'✓':state==='connecting'?'⏳':'🔗';document.getElementById('connect-label').textContent=state==='connected'?'Connected':state==='connecting'?'Connecting…':'Connect DISTO';document.getElementById('connect-status').textContent=text;}
@@ -241,7 +282,7 @@ function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
 function ds(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function dl(c,n,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}
 load();renderLog();updateCalc();startGPS();
-dbg('DISTO Logger ready — BLE direct with bonding + remote trigger.');
+dbg('DISTO Logger — command explorer mode.');
 </script>
 </body>
 </html>
