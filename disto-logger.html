@@ -29,24 +29,23 @@ select,input,textarea{font-size:16px !important;}
 #shoot-btn{padding:12px 24px;border-radius:12px;border:none;font-size:16px;font-weight:900;cursor:pointer;background:var(--red);color:#fff;display:none;}
 #shoot-btn.ready{display:flex;align-items:center;gap:8px;}
 #shoot-btn:active{transform:scale(.96);}
-#log-area{flex:1;overflow-y:auto;padding:16px;}
+#log-area{flex:1;overflow-y:auto;padding:8px 10px;}
 #empty-state{text-align:center;padding:40px 24px;color:var(--muted);}
 #empty-state .es-icon{font-size:56px;margin-bottom:12px;}
 #empty-state h3{font-size:18px;color:var(--accent);font-weight:800;margin-bottom:8px;}
 #empty-state p{font-size:13px;line-height:1.6;max-width:420px;margin:0 auto;}
-.meas-row{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.meas-row{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;margin-bottom:2px;display:flex;align-items:center;gap:6px;min-height:0;}
 .meas-row.tagged{border-color:var(--accent);}
-.meas-row .mr-num{background:var(--bg);color:var(--accent);border:1px solid var(--accent);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
-.meas-row .mr-body{flex:1;min-width:0;}
-.meas-row .mr-value{font-size:22px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;}
-.meas-row .mr-value .unit{font-size:13px;color:var(--muted);font-weight:600;margin-left:4px;}
-.meas-row .mr-meta{font-size:10px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
-.meas-row .mr-label{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text);width:140px;min-width:0;}
+.meas-row .mr-num{color:var(--accent);font-size:11px;font-weight:800;flex-shrink:0;min-width:18px;text-align:right;}
+.meas-row .mr-value{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.meas-row .mr-value .unit{font-size:11px;color:var(--muted);font-weight:600;margin-left:2px;}
+.meas-row .mr-label{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:13px;font-weight:700;color:var(--accent);flex:1;min-width:0;}
 .meas-row .mr-label:focus{border-color:var(--accent);}
-.meas-row .mr-tag{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);}
+.meas-row .mr-meta{font-size:9px;color:var(--muted);display:flex;gap:4px;flex-shrink:0;align-items:center;}
+.meas-row .mr-tag{padding:1px 5px;border-radius:4px;font-size:9px;font-weight:800;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);}
 .meas-row .mr-tag.a{background:rgba(59,130,246,.2);color:var(--blue);border-color:var(--blue);}
 .meas-row .mr-tag.b{background:rgba(245,158,11,.2);color:var(--accent);border-color:var(--accent);}
-.meas-row .mr-del{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;flex-shrink:0;}
+.meas-row .mr-del{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
 .meas-row .mr-del:hover{color:var(--red);}
 #calc-panel{background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;flex-shrink:0;}
 #calc-panel h4{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
@@ -317,13 +316,12 @@ function renderLog(){
   empty.style.display='none';
   rows.innerHTML=MEAS.map(function(m){
     var h='<div class="meas-row'+((m.tag)?' tagged':'')+'">';
-    h+='<div class="mr-num">'+m.num+'</div><div class="mr-body">';
+    h+='<div class="mr-num">'+m.num+'</div>';
     h+='<div class="mr-value">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
-    h+='<div class="mr-meta"><span>'+esc(m.source)+'</span>';
-    if(m.station)h+='<span style="color:var(--accent)">Sta '+esc(m.station)+'</span>';
-    if(m.lat)h+='<span>📍'+m.lat+','+m.lng+'</span>';
-    h+='<span>'+new Date(m.ts).toLocaleTimeString()+'</span></div></div>';
     h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
+    h+='<div class="mr-meta">';
+    if(m.station)h+='<span style="color:var(--accent)">'+esc(m.station)+'</span>';
+    h+='<span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
     h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
     h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
     h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
