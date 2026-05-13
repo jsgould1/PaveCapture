@@ -272,7 +272,8 @@ function onMeasurement(event){
     return;
   }
   dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
-  if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');\n    if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
+  if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
+    if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
     if(_calActive){onCalMeasurement(dist);return;}
     addMeasurement(dist,'m','DISTO BLE');return;}}
   if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
@@ -330,8 +331,8 @@ function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.s
 function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();updateCalc();}
 function toggleDebug(){document.getElementById('debug-panel').classList.toggle('show');}
 function dbg(msg){var el=document.getElementById('debug-log');el.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';el.scrollTop=el.scrollHeight;console.log('[DISTO]',msg);}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');}
-function q(s){return '"'+String(s||'').replace(/\"/g,'""')+'"';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
 function ds(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function dl(c,n,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}
 async function calibrateEdgeDrop(){
