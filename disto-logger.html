@@ -156,7 +156,7 @@ var _device=null,_server=null,_cmdChar=null,_connected=false;
 var _pendingMeasResolve=null,_edgeDropActive=false;
 var _calRef=null,_calActive=false;
 var _sessionActive=false,_sessionRef=null,_sessionType='',_sessionBtnId='';
-var _sessionSamples=[],_sessionGpsStart=null,_sessionStartSta='',_sessionReady=false;
+var _sessionSamples=[],_sessionGpsStart=null,_sessionStartSta='';
 var _lastGpsLat=null,_lastGpsLng=null,_stationFt=0;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
@@ -263,7 +263,7 @@ function onMeasurement(event){
   dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
     if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
-    if(_sessionActive&&_sessionReady){addSessionSample(dist);return;}
+    if(_sessionActive){if(_sessionRef===null){onSessionARef(dist);}else{addSessionSample(dist);}return;}
     if(_calActive){onCalMeasurement(dist);return;}
     var pu=prefUnit();var pv=convertFromM(dist,pu);addMeasurement(pv,pu,'DISTO BLE');return;}}
   if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
@@ -312,8 +312,8 @@ function renderLog(){
     h+='<div class="mr-meta">';
     if(m.station)h+='<span style="color:var(--accent)">'+esc(m.station)+'</span>';
     h+='<span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
-    h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+' " onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
-    h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+' " onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
+    h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
+    h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
     h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
     return h;
   }).join('');
@@ -429,52 +429,40 @@ function waitForMeasurement(ms){
     var t=setTimeout(function(){if(_pendingMeasResolve===resolve){_pendingMeasResolve=null;reject(new Error('Timeout'));}},ms||10000);
   });
 }
-async function toggleSession(type){
+function toggleSession(type){
   if(_sessionActive){endSession();return;}
   if(!_cmdChar){alert('Connect DISTO first');return;}
   _sessionType=type||'Measurement';
   _sessionBtnId=type==='Curb Reveal'?'curb-btn':'edrop-btn';
+  _sessionActive=true;
+  _sessionRef=null;
+  _sessionSamples=[];
+  _sessionGpsStart=(_lat&&_lng)?{lat:_lat,lng:_lng}:null;
+  _sessionStartSta=curStation();
   var btn=document.getElementById(_sessionBtnId);
-  btn.textContent='⏳ A ref…';btn.style.background='var(--accent)';btn.style.color='#000';
-  document.getElementById('connect-status').textContent=_sessionType+': aim at reference surface — firing…';
-  dbg(_sessionType+' — firing A reference shot…');
-  try{
-    var prom=waitForMeasurement(10000);
-    await shootDisto();
-    var aDistM=await prom;
-    _sessionRef=aDistM;
-    _sessionSamples=[];
-    _sessionGpsStart=(_lat&&_lng)?{lat:_lat,lng:_lng}:null;
-    _sessionStartSta=curStation();
-    _sessionActive=true;
-    _sessionReady=false;
-    var pu=prefUnit();
-    var refVal=convertFromM(aDistM,pu);
-    dbg(_sessionType+' A='+aDistM.toFixed(4)+'m ('+refVal.toFixed(2)+' '+pu+') — 2s reposition…');
-    btn.textContent='⏳ reposition…';
-    document.getElementById('connect-status').textContent=_sessionType+': ref='+refVal.toFixed(2)+' '+pu+' — reposition (2s)…';
-    await new Promise(function(r){setTimeout(r,2000);});
-    if(!_sessionActive){return;}
-    _sessionReady=true;
-    btn.textContent='⏹ '+_sessionType+' (0)';
-    document.getElementById('connect-status').textContent=_sessionType+' ACTIVE (0 shots) — SHOOT for each B, tap button to End';
-  }catch(e){
-    dbg(_sessionType+' ref failed: '+e.message);
-    _sessionActive=false;_sessionReady=false;
-    resetSessionBtns();
-    document.getElementById('connect-status').textContent='Reference shot failed: '+e.message;
-  }
+  btn.textContent='⏹ End '+_sessionType;
+  btn.style.background='var(--red)';btn.style.color='#fff';
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT (A ref)';
+  document.getElementById('connect-status').textContent=_sessionType+' — aim at reference surface, then SHOOT';
+  dbg(_sessionType+' session started — awaiting A reference shot');
+}
+function onSessionARef(distM){
+  _sessionRef=distM;
+  var pu=prefUnit();
+  var refVal=convertFromM(distM,pu);
+  dbg(_sessionType+' A ref='+distM.toFixed(4)+'m ('+refVal.toFixed(2)+' '+pu+')');
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT (B)';
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ '+_sessionType+' (0)';
+  document.getElementById('connect-status').textContent=_sessionType+' ref='+refVal.toFixed(2)+' '+pu+' — reposition, SHOOT for each B reading';
 }
 function addSessionSample(distM){
   var aM=_sessionRef;
   var dropM=aM-distM;
   var pu=prefUnit();
   var dropVal=convertFromM(Math.abs(dropM),pu);
-  var aVal=convertFromM(aM,pu).toFixed(2);
-  var bVal=convertFromM(distM,pu).toFixed(2);
   var sta=curStation();
-  var notesTxt=_sessionType+' A:'+aVal+' B:'+bVal;
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:notesTxt,tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+(_sessionSamples.length+1),ts:new Date().toISOString(),rawBM:distM,calRefM:aM});
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+(_sessionSamples.length+1),ts:new Date().toISOString(),rawBM:distM,calRefM:aM});
   _sessionSamples.push({drop:dropVal,unit:pu,station:sta});
   save();renderLog();updateCalc();
   var btn=document.getElementById(_sessionBtnId);
@@ -485,8 +473,9 @@ function addSessionSample(distM){
   setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
 }
 async function endSession(){
-  _sessionActive=false;_sessionReady=false;
+  _sessionActive=false;
   resetSessionBtns();
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT';
   var samples=_sessionSamples.slice();
   _sessionSamples=[];
   if(samples.length===0){document.getElementById('connect-status').textContent='Session ended — no B readings taken';return;}
@@ -500,7 +489,7 @@ async function endSession(){
   var pu=samples[0].unit;
   dbg(_sessionType+' end: n='+n+' avg='+avg.toFixed(3)+' min='+mn.toFixed(3)+' max='+mx.toFixed(3)+' sd='+stdev.toFixed(3)+' '+pu);
   var stationRange=await promptStationRange(_sessionStartSta,curStation(),_sessionGpsStart,_lat,_lng);
-  var summaryLabel=_sessionType+' Summary (n='+n+')';
+  var summaryLabel=_sessionType+' (n='+n+')';
   var summaryNotes='avg:'+avg.toFixed(2)+' min:'+mn.toFixed(2)+' max:'+mx.toFixed(2)+' sd:'+stdev.toFixed(2)+' '+pu;
   var summaryStation=stationRange.start+(stationRange.end?'–'+stationRange.end:'');
   MEAS.push({id:'m'+Date.now()+'sum',num:_nextNum++,value:avg,unit:pu,label:summaryLabel,notes:summaryNotes,tag:'',station:summaryStation,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' Avg',ts:new Date().toISOString(),summaryData:{avg:avg,min:mn,max:mx,stdev:stdev,count:n,startSta:stationRange.start,endSta:stationRange.end}});
