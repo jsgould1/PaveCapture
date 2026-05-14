@@ -74,6 +74,14 @@ select,input,textarea{font-size:16px !important;}
 #debug-panel{display:none;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px;max-height:200px;overflow-y:auto;flex-shrink:0;}
 #debug-panel.show{display:block;}
 #debug-log{font-family:'Cascadia Code','Consolas',monospace;font-size:11px;color:var(--muted);white-space:pre-wrap;line-height:1.6;}
+.session-group{display:flex;gap:6px;margin-bottom:6px;border:1px solid var(--accent);border-radius:8px;padding:4px;background:rgba(245,158,11,.04);}
+.session-group.no-avg{border-color:var(--border);background:rgba(245,158,11,.02);}
+.session-rows{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.session-summary{flex-shrink:0;width:140px;background:var(--bg);border-left:2px solid var(--accent);border-radius:6px;padding:6px 8px;font-size:11px;display:flex;flex-direction:column;gap:3px;}
+.ss-title{font-size:11px;font-weight:900;color:var(--accent);margin-bottom:4px;text-align:center;text-transform:uppercase;letter-spacing:.04em;}
+.ss-row{display:flex;justify-content:space-between;align-items:baseline;}
+.ss-lbl{color:var(--muted);font-weight:700;font-size:10px;}
+.ss-val{color:var(--text);font-weight:800;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -100,6 +108,7 @@ select,input,textarea{font-size:16px !important;}
     <button id="laser-btn2" onclick="laserToggle()" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;background:var(--bg);border:1px solid var(--red);color:var(--red);">🔴 Laser</button>
     <button id="edrop-btn" onclick="toggleSession('Edge Drop')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
     <button id="curb-btn" onclick="toggleSession('Curb Reveal')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
+    <label id="avg-chk-lbl" class="auto-chk" style="display:none;font-size:12px;font-weight:700"><input type="checkbox" id="avg-chk"> Avg</label>
   </div>
   <div id="station-bar">
     <span class="sta-label">Station:</span>
@@ -157,6 +166,7 @@ var _pendingMeasResolve=null,_edgeDropActive=false;
 var _calRef=null,_calActive=false;
 var _sessionActive=false,_sessionRef=null,_sessionType='',_sessionBtnId='';
 var _sessionSamples=[],_sessionGpsStart=null,_sessionStartSta='';
+var _sessionId='',_sessionAvg=false,_sessionPrompting=false;
 var _lastGpsLat=null,_lastGpsLng=null,_stationFt=0;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
@@ -209,12 +219,12 @@ async function connectDisto(){
     if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
     if(!_cmdChar)dbg('⚠ No writable char');
     _connected=true;
-    if(_cmdChar){document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');document.getElementById('laser-btn').style.display='';}
+    if(_cmdChar){document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('avg-chk-lbl').style.display='inline-flex';document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');document.getElementById('laser-btn').style.display='';}
     updateConnectUI('connected','Connected — SHOOT, Edge Drop, or Curb Reveal');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
-function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
-function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('avg-chk-lbl').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('avg-chk-lbl').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
 async function shootDisto(){
   await sendDistocom('raiseEvent 10\r\n');
   await new Promise(function(r){setTimeout(r,600);});
@@ -263,7 +273,7 @@ function onMeasurement(event){
   dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
     if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
-    if(_sessionActive){if(_sessionRef===null){onSessionARef(dist);}else{addSessionSample(dist);}return;}
+    if(_sessionActive){if(_sessionPrompting){dbg('Station prompt open — ignoring shot');return;}if(_sessionRef===null){onSessionARef(dist);}else{addSessionSample(dist);}return;}
     if(_calActive){onCalMeasurement(dist);return;}
     var pu=prefUnit();var pv=convertFromM(dist,pu);addMeasurement(pv,pu,'DISTO BLE');return;}}
   if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
@@ -298,25 +308,71 @@ function deleteRow(id){MEAS=MEAS.filter(function(x){return x.id!==id;});save();r
 function updateLabel(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.label=val;save();}}
 function updateNotes(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.notes=val;save();}}
 function toInches(v,u){if(u==='in')return v;if(u==='ft')return v*12;if(u==='m')return v*39.3701;if(u==='mm')return v/25.4;return v;}
+function renderRow(m){
+  var negStyle=(typeof m.value==='number'&&m.value<0)?'color:var(--red);':'';
+  var h='<div class="meas-row'+((m.tag)?' tagged':'')+'">';
+  h+='<div class="mr-num">'+m.num+'</div>';
+  h+='<div class="mr-value" style="'+negStyle+'">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
+  h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
+  h+='<input style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);width:140px;min-width:0;flex-shrink:1;" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
+  h+='<div class="mr-meta">';
+  if(m.station)h+='<span style="color:var(--accent)">'+esc(m.station)+'</span>';
+  h+='<span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
+  h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
+  h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
+  h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
+  return h;
+}
+function renderSessionSummary(group){
+  var n=group.length;
+  var vals=group.map(function(m){return m.value;});
+  var sum=0,mn=Infinity,mx=-Infinity;
+  for(var i=0;i<n;i++){sum+=vals[i];if(vals[i]<mn)mn=vals[i];if(vals[i]>mx)mx=vals[i];}
+  var avg=sum/n;
+  var variance=0;for(var j=0;j<n;j++){variance+=(vals[j]-avg)*(vals[j]-avg);}
+  var stdev=n>1?Math.sqrt(variance/(n-1)):0;
+  var pu=group[0].unit;
+  var stations=group.map(function(m){return m.station;}).filter(function(s){return s;});
+  var staRange='';
+  if(stations.length>=2){staRange=stations[0]+'–'+stations[stations.length-1];}
+  else if(stations.length===1){staRange=stations[0];}
+  var h='<div class="session-summary">';
+  h+='<div class="ss-title">'+esc(group[0].sessionType||'Group')+'</div>';
+  h+='<div class="ss-row"><span class="ss-lbl">N</span><span class="ss-val">'+n+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">AVG</span><span class="ss-val">'+formatVal(avg,pu)+' '+pu+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">MIN</span><span class="ss-val">'+formatVal(mn,pu)+' '+pu+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">MAX</span><span class="ss-val">'+formatVal(mx,pu)+' '+pu+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">SD</span><span class="ss-val">'+stdev.toFixed(3)+'</span></div>';
+  if(staRange)h+='<div class="ss-row"><span class="ss-lbl">STA</span><span class="ss-val" style="font-size:10px">'+esc(staRange)+'</span></div>';
+  h+='</div>';
+  return h;
+}
 function renderLog(){
   var rows=document.getElementById('log-rows'),empty=document.getElementById('empty-state');
   document.getElementById('meas-count').textContent=MEAS.length+' meas';
   if(!MEAS.length){empty.style.display='block';rows.innerHTML='';return;}
   empty.style.display='none';
-  rows.innerHTML=MEAS.map(function(m){
-    var h='<div class="meas-row'+((m.tag)?' tagged':'')+'">';
-    h+='<div class="mr-num">'+m.num+'</div>';
-    h+='<div class="mr-value">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
-    h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
-    h+='<input style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);width:140px;min-width:0;flex-shrink:1;" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
-    h+='<div class="mr-meta">';
-    if(m.station)h+='<span style="color:var(--accent)">'+esc(m.station)+'</span>';
-    h+='<span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
-    h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
-    h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
-    h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
-    return h;
-  }).join('');
+  var html='';
+  var i=0;
+  while(i<MEAS.length){
+    var m=MEAS[i];
+    if(m.sessionId){
+      var sid=m.sessionId;
+      var group=[];
+      while(i<MEAS.length&&MEAS[i].sessionId===sid){group.push(MEAS[i]);i++;}
+      var rowsHtml=group.map(renderRow).join('');
+      var hasAvg=group[0].sessionAvg;
+      if(hasAvg){
+        html+='<div class="session-group"><div class="session-rows">'+rowsHtml+'</div>'+renderSessionSummary(group)+'</div>';
+      } else {
+        html+='<div class="session-group no-avg"><div class="session-rows">'+rowsHtml+'</div></div>';
+      }
+    } else {
+      html+=renderRow(m);
+      i++;
+    }
+  }
+  rows.innerHTML=html;
 }
 function formatVal(v,u){if(u==='m')return v.toFixed(4);if(u==='mm')return v.toFixed(1);if(u==='ft')return v.toFixed(3);if(u==='in')return v.toFixed(2);return v.toFixed(4);}
 function updateCalc(){
@@ -437,14 +493,17 @@ function toggleSession(type){
   _sessionActive=true;
   _sessionRef=null;
   _sessionSamples=[];
+  _sessionId='s'+Date.now();
+  _sessionAvg=!!(document.getElementById('avg-chk')&&document.getElementById('avg-chk').checked);
+  _sessionPrompting=false;
   _sessionGpsStart=(_lat&&_lng)?{lat:_lat,lng:_lng}:null;
   _sessionStartSta=curStation();
   var btn=document.getElementById(_sessionBtnId);
   btn.textContent='⏹ End '+_sessionType;
   btn.style.background='var(--red)';btn.style.color='#fff';
   document.getElementById('shoot-btn').textContent='🎯 SHOOT (A ref)';
-  document.getElementById('connect-status').textContent=_sessionType+' — aim at reference surface, then SHOOT';
-  dbg(_sessionType+' session started — awaiting A reference shot');
+  document.getElementById('connect-status').textContent=_sessionType+(_sessionAvg?' [AVG]':'')+' — aim at reference, then SHOOT';
+  dbg(_sessionType+' session '+_sessionId+(_sessionAvg?' (avg)':'')+' — awaiting A ref');
 }
 function onSessionARef(distM){
   _sessionRef=distM;
@@ -456,46 +515,43 @@ function onSessionARef(distM){
   btn.textContent='⏹ '+_sessionType+' (0)';
   document.getElementById('connect-status').textContent=_sessionType+' ref='+refVal.toFixed(2)+' '+pu+' — reposition, SHOOT for each B reading';
 }
-function addSessionSample(distM){
+async function addSessionSample(distM){
   var aM=_sessionRef;
   var dropM=aM-distM;
   var pu=prefUnit();
-  var dropVal=convertFromM(Math.abs(dropM),pu);
+  var dropVal=convertFromM(dropM,pu);
   var sta=curStation();
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+(_sessionSamples.length+1),ts:new Date().toISOString(),rawBM:distM,calRefM:aM});
+  var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
+  if(!autoSta){
+    _sessionPrompting=true;
+    try{sta=await promptStation(sta);}
+    finally{_sessionPrompting=false;}
+  }
+  if(!_sessionActive)return;
+  var idx=_sessionSamples.length+1;
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+idx,ts:new Date().toISOString(),rawBM:distM,calRefM:aM,sessionId:_sessionId,sessionType:_sessionType,sessionAvg:_sessionAvg});
   _sessionSamples.push({drop:dropVal,unit:pu,station:sta});
   save();renderLog();updateCalc();
   var btn=document.getElementById(_sessionBtnId);
   btn.textContent='⏹ '+_sessionType+' ('+_sessionSamples.length+')';
   var sign=dropM>=0?' ↓drop':' ↑rise';
-  document.getElementById('connect-status').textContent=_sessionType+' #'+_sessionSamples.length+': '+dropVal.toFixed(2)+' '+pu+sign;
-  dbg(_sessionType+' B#'+_sessionSamples.length+': drop='+dropVal.toFixed(3)+' '+pu);
+  document.getElementById('connect-status').textContent=_sessionType+' #'+_sessionSamples.length+': '+dropVal.toFixed(2)+' '+pu+sign+' @ '+sta;
+  dbg(_sessionType+' B#'+_sessionSamples.length+': '+dropVal.toFixed(3)+' '+pu+' @ '+sta);
   setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
 }
-async function endSession(){
+function endSession(){
+  var n=_sessionSamples.length;
+  var endedType=_sessionType;
   _sessionActive=false;
+  _sessionPrompting=false;
+  _sessionRef=null;
+  _sessionSamples=[];
+  _sessionId='';
   resetSessionBtns();
   document.getElementById('shoot-btn').textContent='🎯 SHOOT';
-  var samples=_sessionSamples.slice();
-  _sessionSamples=[];
-  if(samples.length===0){document.getElementById('connect-status').textContent='Session ended — no B readings taken';return;}
-  var n=samples.length;
-  var vals=samples.map(function(s){return s.drop;});
-  var sum=0,mn=Infinity,mx=-Infinity;
-  for(var i=0;i<n;i++){sum+=vals[i];if(vals[i]<mn)mn=vals[i];if(vals[i]>mx)mx=vals[i];}
-  var avg=sum/n;
-  var variance=0;for(var j=0;j<n;j++){variance+=(vals[j]-avg)*(vals[j]-avg);}
-  var stdev=n>1?Math.sqrt(variance/(n-1)):0;
-  var pu=samples[0].unit;
-  dbg(_sessionType+' end: n='+n+' avg='+avg.toFixed(3)+' min='+mn.toFixed(3)+' max='+mx.toFixed(3)+' sd='+stdev.toFixed(3)+' '+pu);
-  var stationRange=await promptStationRange(_sessionStartSta,curStation(),_sessionGpsStart,_lat,_lng);
-  var summaryLabel=_sessionType+' (n='+n+')';
-  var summaryNotes='avg:'+avg.toFixed(2)+' min:'+mn.toFixed(2)+' max:'+mx.toFixed(2)+' sd:'+stdev.toFixed(2)+' '+pu;
-  var summaryStation=stationRange.start+(stationRange.end?'–'+stationRange.end:'');
-  MEAS.push({id:'m'+Date.now()+'sum',num:_nextNum++,value:avg,unit:pu,label:summaryLabel,notes:summaryNotes,tag:'',station:summaryStation,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' Avg',ts:new Date().toISOString(),summaryData:{avg:avg,min:mn,max:mx,stdev:stdev,count:n,startSta:stationRange.start,endSta:stationRange.end}});
-  save();renderLog();updateCalc();
-  document.getElementById('connect-status').textContent=_sessionType+' done: avg '+avg.toFixed(2)+' '+pu+' (n='+n+')';
-  setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+  if(n===0){document.getElementById('connect-status').textContent=endedType+' session ended — no B readings';}
+  else{document.getElementById('connect-status').textContent=endedType+' session ended — '+n+' readings logged';}
+  dbg(endedType+' session ended ('+n+' B readings)');
 }
 function resetSessionBtns(){
   var e=document.getElementById('edrop-btn');if(e){e.textContent='📐 Edge Drop';e.style.background='linear-gradient(135deg,var(--blue),var(--accent))';e.style.color='#fff';}
