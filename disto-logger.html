@@ -93,7 +93,6 @@ select,input,textarea{font-size:16px !important;}
     <select id="unit-pref" onchange="save();renderLog()" style="padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:12px;font-weight:800;">
       <option value="in">in</option><option value="ft">ft</option><option value="m">m</option><option value="mm">mm</option>
     </select>
-    <button id="laser-btn" class="top-btn" onclick="laserToggle()" style="display:none;color:var(--red);border-color:var(--red)">🔴</button>
     <span id="meas-count" style="font-size:12px;color:var(--accent);font-weight:800">0</span>
     <button class="top-btn" onclick="toggleDebug()">🔧</button>
     <button class="top-btn" onclick="exportLog()">📤</button>
@@ -105,11 +104,11 @@ select,input,textarea{font-size:16px !important;}
       <span id="connect-label">Connect DISTO</span>
     </button>
     <span id="connect-status">Unpair from Windows first, then connect here</span>
+    <button id="laser-btn2" onclick="laserToggle()" style="display:none;padding:8px 12px;border-radius:8px;border:1px solid var(--red);font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--red);">🔴 Laser</button>
+    <button id="edrop-btn" onclick="toggleSession('Edge Drop')" style="display:none;padding:6px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
+    <button id="curb-btn" onclick="toggleSession('Curb Reveal')" style="display:none;padding:6px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
+    <button id="thick-btn" onclick="toggleSession('Thickness')" style="display:none;padding:6px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#a855f7,var(--accent));color:#fff;">📚 Thickness</button>
     <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
-    <button id="laser-btn2" onclick="laserToggle()" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;background:var(--bg);border:1px solid var(--red);color:var(--red);">🔴 Laser</button>
-    <button id="edrop-btn" onclick="toggleSession('Edge Drop')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
-    <button id="curb-btn" onclick="toggleSession('Curb Reveal')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
-    <button id="thick-btn" onclick="toggleSession('Thickness')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#a855f7,var(--accent));color:#fff;">📚 Thickness</button>
   </div>
   <div id="sel-bar" style="display:none;background:var(--surface);padding:6px 16px;align-items:center;gap:10px;border-bottom:1px solid var(--accent);flex-shrink:0;">
     <span id="sel-count" style="font-size:12px;font-weight:800;color:var(--accent)">0 selected</span>
@@ -226,12 +225,12 @@ async function connectDisto(){
     if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
     if(!_cmdChar)dbg('⚠ No writable char');
     _connected=true;
-    if(_cmdChar){document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('thick-btn').style.display='inline-flex';document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');document.getElementById('laser-btn').style.display='';}
+    if(_cmdChar){document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('thick-btn').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');}
     updateConnectUI('connected','Connected — SHOOT, Edge Drop, or Curb Reveal');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
-function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
-function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('laser-btn2').style.display='none';document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('laser-btn2').style.display='none';document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
 async function shootDisto(){
   await sendDistocom('raiseEvent 10\r\n');
   await new Promise(function(r){setTimeout(r,600);});
@@ -300,9 +299,9 @@ function laserToggle(){
   if(_laserCooldown||!_cmdChar)return;
   sendDistocom('raiseEvent 10\r\n');
   _laserCooldown=true;
-  var btns=[document.getElementById('laser-btn'),document.getElementById('laser-btn2')];
-  btns.forEach(function(b){if(b){b.style.opacity='0.4';b.style.cursor='not-allowed';}});
-  var sec=30,iv=setInterval(function(){sec--;btns.forEach(function(b){if(b)b.textContent='🔴'+sec;});if(sec<=0){clearInterval(iv);_laserCooldown=false;btns.forEach(function(b){if(b){b.textContent='🔴 Laser';b.style.opacity='';b.style.cursor='pointer';}});document.getElementById('laser-btn').textContent='🔴';}},1000);
+  var btn=document.getElementById('laser-btn2');
+  if(btn){btn.style.opacity='0.4';btn.style.cursor='not-allowed';}
+  var sec=30,iv=setInterval(function(){sec--;if(btn)btn.textContent='🔴 '+sec;if(sec<=0){clearInterval(iv);_laserCooldown=false;if(btn){btn.textContent='🔴 Laser';btn.style.opacity='';btn.style.cursor='pointer';}}},1000);
 }
 function addMeasurement(value,unit,source){
   var autoTag=_armedTag;if(autoTag){MEAS.forEach(function(m){if(m.tag===autoTag)m.tag='';});_armedTag='';updateArmUI();}
@@ -524,7 +523,7 @@ function onSessionARef(distM){
 }
 async function addSessionSample(distM){
   var aM=_sessionRef;
-  var dropM=aM-distM;
+  var dropM=distM-aM;
   var pu=prefUnit();
   var dropVal=convertFromM(dropM,pu);
   var sta=curStation();
