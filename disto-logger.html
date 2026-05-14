@@ -3,5 +3,572 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DISTO Logger</title>
-</head><body>Loading...</body></html>
+<title>DISTO Logger — Leica Measurement Tool</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#f1f5f9;
+  --muted:#94a3b8;--accent:#f59e0b;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;}
+select,input,textarea{font-size:16px !important;}
+#app{display:flex;flex-direction:column;height:100vh;max-width:900px;margin:0 auto;}
+#top-bar{background:var(--surface);padding:10px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brand{font-weight:800;font-size:18px;color:var(--accent);}
+.brand span{color:var(--text);font-weight:400;font-size:12px;margin-left:6px;}
+.top-spacer{flex:1;}
+.top-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;}
+.top-btn:hover{border-color:var(--accent);color:var(--accent);}
+#connect-bar{background:var(--surface);padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+#connect-btn{padding:10px 20px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;}
+#connect-btn.disconnected{background:var(--blue);color:#fff;}
+#connect-btn.connecting{background:var(--accent);color:#000;}
+#connect-btn.connected{background:var(--green);color:#000;}
+#connect-status{font-size:12px;color:var(--muted);font-weight:600;flex:1;}
+#shoot-btn{padding:12px 24px;border-radius:12px;border:none;font-size:16px;font-weight:900;cursor:pointer;background:var(--red);color:#fff;display:none;}
+#shoot-btn.ready{display:flex;align-items:center;gap:8px;}
+#shoot-btn:active{transform:scale(.96);}
+#log-area{flex:1;overflow-y:auto;padding:8px 10px;}
+#empty-state{text-align:center;padding:40px 24px;color:var(--muted);}
+#empty-state .es-icon{font-size:56px;margin-bottom:12px;}
+#empty-state h3{font-size:18px;color:var(--accent);font-weight:800;margin-bottom:8px;}
+#empty-state p{font-size:13px;line-height:1.6;max-width:420px;margin:0 auto;}
+.meas-row{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;margin-bottom:2px;display:flex;align-items:center;gap:6px;min-height:0;}
+.meas-row .mr-chk{accent-color:var(--accent);flex-shrink:0;width:16px;height:16px;margin:0;cursor:pointer;}
+.meas-row .mr-num{color:var(--accent);font-size:11px;font-weight:800;flex-shrink:0;min-width:18px;text-align:right;}
+.meas-row .mr-value{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.meas-row .mr-value .unit{font-size:11px;color:var(--muted);font-weight:600;margin-left:2px;}
+.meas-row .mr-label{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:13px;font-weight:700;color:var(--accent);width:80px;min-width:0;flex-shrink:1;}
+.meas-row .mr-label:focus{border-color:var(--accent);}
+.meas-row .mr-notes{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);flex:1;min-width:0;}
+.meas-row .mr-sta{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:12px;font-weight:700;color:var(--accent);width:60px;text-align:center;flex-shrink:0;}
+.meas-row .mr-sta:focus{border-color:var(--accent);}
+.meas-row .mr-geo{font-size:7px;color:var(--muted);line-height:1.2;flex-shrink:0;min-width:58px;font-variant-numeric:tabular-nums;}
+.meas-row .mr-meta{font-size:9px;color:var(--muted);display:flex;gap:4px;flex-shrink:0;align-items:center;}
+.meas-row .mr-del{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+.meas-row .mr-del:hover{color:var(--red);}
+#bottom-bar{background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;}
+#manual-input{flex:1;min-width:120px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;}
+#manual-input:focus{border-color:var(--accent);outline:none;}
+#manual-unit{padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;min-width:60px;}
+.bottom-btn{padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:800;cursor:pointer;}
+#station-bar{background:var(--surface);padding:8px 16px;display:none;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+#station-bar.show{display:flex;}
+#station-input{padding:6px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-weight:700;width:100px;font-variant-numeric:tabular-nums;}
+#station-input:focus{border-color:var(--accent);outline:none;}
+.sta-label{font-size:11px;color:var(--muted);font-weight:700;}
+.auto-chk{font-size:11px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:4px;cursor:pointer;}
+.auto-chk input{accent-color:var(--accent);}
+#cal-btn{padding:8px 14px;border-radius:8px;border:none;font-size:12px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;}
+#cal-btn.active{background:var(--green);color:#000;}
+#cal-status{font-size:11px;font-weight:800;color:var(--green);flex:1;}
+#debug-panel{display:none;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px;max-height:200px;overflow-y:auto;flex-shrink:0;}
+#debug-panel.show{display:block;}
+#debug-log{font-family:'Cascadia Code','Consolas',monospace;font-size:11px;color:var(--muted);white-space:pre-wrap;line-height:1.6;}
+.session-group{display:flex;gap:6px;margin-bottom:6px;border:1px solid var(--accent);border-radius:8px;padding:4px;background:rgba(245,158,11,.04);}
+.session-group.no-avg{border-color:var(--border);background:rgba(245,158,11,.02);}
+.session-rows{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.session-summary{flex-shrink:0;width:140px;background:var(--bg);border-left:2px solid var(--accent);border-radius:6px;padding:6px 8px;font-size:11px;display:flex;flex-direction:column;gap:3px;}
+.ss-title{font-size:11px;font-weight:900;color:var(--accent);margin-bottom:4px;text-align:center;text-transform:uppercase;letter-spacing:.04em;}
+.ss-row{display:flex;justify-content:space-between;align-items:baseline;}
+.ss-lbl{color:var(--muted);font-weight:700;font-size:10px;}
+.ss-val{color:var(--text);font-weight:800;font-variant-numeric:tabular-nums;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top-bar">
+    <div class="brand">DISTO Logger<span>Leica X3</span></div>
+    <div class="top-spacer"></div>
+    <select id="unit-pref" onchange="save();renderLog()" style="padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:12px;font-weight:800;">
+      <option value="in">in</option><option value="ft">ft</option><option value="m">m</option><option value="mm">mm</option>
+    </select>
+    <span id="meas-count" style="font-size:12px;color:var(--accent);font-weight:800">0</span>
+    <button class="top-btn" onclick="toggleDebug()">🔧</button>
+    <button class="top-btn" onclick="exportLog()">📤</button>
+    <button class="top-btn" onclick="clearLog()">🗑</button>
+  </div>
+  <div id="connect-bar">
+    <button id="connect-btn" class="disconnected" onclick="toggleConnection()">
+      <span id="connect-icon">🔗</span>
+      <span id="connect-label">Connect DISTO</span>
+    </button>
+    <span id="connect-status">Unpair from Windows first, then connect here</span>
+    <button id="laser-btn2" onclick="laserToggle()" style="display:none;padding:8px 12px;border-radius:8px;border:1px solid var(--red);font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--red);">🔴 Laser</button>
+    <button id="edrop-btn" onclick="toggleSession('Edge Drop')" style="display:none;padding:6px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
+    <button id="curb-btn" onclick="toggleSession('Curb Reveal')" style="display:none;padding:6px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
+    <button id="thick-btn" onclick="toggleSession('Thickness')" style="display:none;padding:6px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#a855f7,var(--accent));color:#fff;">📚 Thickness</button>
+    <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
+  </div>
+  <div id="sel-bar" style="display:none;background:var(--surface);padding:6px 16px;align-items:center;gap:10px;border-bottom:1px solid var(--accent);flex-shrink:0;">
+    <span id="sel-count" style="font-size:12px;font-weight:800;color:var(--accent)">0 selected</span>
+    <button onclick="groupSelected()" style="padding:8px 16px;border-radius:8px;border:none;font-size:12px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--accent));color:#fff;">📊 Group Data</button>
+    <button onclick="clearSelection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;">Clear</button>
+  </div>
+  <div id="station-bar">
+    <span class="sta-label">Station:</span>
+    <input type="text" id="station-input" placeholder="0+00" value="">
+    <label class="auto-chk"><input type="checkbox" id="auto-station" onchange="toggleAutoStation()"> Auto GPS</label>
+    <span class="sta-label" style="margin-left:4px">|</span>
+    <button id="cal-btn" onclick="calibrateEdgeDrop()">📐 Set Reference</button>
+    <button id="cal-clear-btn" onclick="clearCalibrate()" style="display:none;padding:6px 10px;border-radius:6px;border:1px solid var(--red);background:rgba(239,68,68,.15);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;">✕ Clear Ref</button>
+    <span id="cal-status"></span>
+    <span class="sta-label" style="margin-left:4px">|</span>
+    <span class="sta-label">Ref∠:</span>
+    <input type="number" id="ref-angle" placeholder="0" step="0.1" min="0" max="90" style="padding:4px 6px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--accent);font-size:14px;font-weight:700;width:55px;text-align:center;" onchange="setRefAngle(this.value)">
+    <span class="sta-label">°</span>
+    <span id="angle-status" style="font-size:10px;font-weight:700;color:var(--green)"></span>
+  </div>
+  <div id="log-area">
+    <div id="empty-state">
+      <div class="es-icon">📏</div>
+      <h3>Ready to Measure</h3>
+      <p><b style="color:var(--green)">BLE Direct Mode:</b><br>
+      1. <b style="color:var(--red)">Remove</b> the DISTO from Windows Bluetooth settings<br>
+      2. Turn on Bluetooth on the DISTO (App mode, not Keyboard)<br>
+      3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
+      4. If Chrome shows a pairing prompt, <b>accept it</b><br>
+      5. Tap <b>🎯 SHOOT</b> — laser turns on, fires after 600ms, measurement auto-logs<br><br>
+      Manual entry also works below.</p>
+    </div>
+    <div id="log-rows"></div>
+  </div>
+  <div id="bottom-bar">
+    <input type="text" id="manual-input" placeholder="Manual entry or DISTO keyboard…" onkeydown="if(event.key==='Enter'){event.preventDefault();addManual();}">
+    <select id="manual-unit"><option value="ft">ft</option><option value="in">in</option><option value="m">m</option><option value="mm">mm</option></select>
+    <button class="bottom-btn" onclick="addManual()" style="background:var(--accent);color:#000;">+ Add</button>
+  </div>
+</div>
+<div id="debug-panel">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-size:12px;font-weight:800;color:var(--accent)">🔧 BLE Debug</span>
+    <button onclick="document.getElementById('debug-log').textContent=''" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">Clear</button>
+  </div>
+  <div id="debug-log"></div>
+</div>
+<script>
+var MEAS=[],_lat=null,_lng=null,_nextNum=1;
+var _device=null,_server=null,_cmdChar=null,_connected=false;
+var _pendingMeasResolve=null,_edgeDropActive=false;
+var _calRef=null,_calActive=false,_calAngle=null;
+var _sessionActive=false,_sessionRef=null,_sessionType='',_sessionBtnId='';
+var _sessionSamples=[],_sessionGpsStart=null,_sessionStartSta='';
+var _sessionId='',_sessionPrompting=false;
+var _selected={};
+var _lastGpsLat=null,_lastGpsLng=null,_stationFt=0;
+var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
+var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
+var DISTO_DIST='3ab10101-f831-4395-b29d-570977d5bf94';
+var DISTO_CMD_RX='3ab10120-f831-4395-b29d-570977d5bf94';
+var DISTO_CMD_TX='3ab10121-f831-4395-b29d-570977d5bf94';
+var DISTO_EVT='3ab10122-f831-4395-b29d-570977d5bf94';
+var LS='distologger_v1';
+function save(){try{localStorage.setItem(LS,JSON.stringify({meas:MEAS,nextNum:_nextNum}));}catch(e){}}
+function load(){try{var r=localStorage.getItem(LS);if(r){var d=JSON.parse(r);MEAS=d.meas||[];_nextNum=d.nextNum||MEAS.length+1;}}catch(e){}}
+function startGPS(){if(!navigator.geolocation)return;navigator.geolocation.watchPosition(function(p){
+  var nlat=p.coords.latitude,nlng=p.coords.longitude;
+  if(_lastGpsLat!==null&&document.getElementById('auto-station')&&document.getElementById('auto-station').checked){
+    var d=haversine(_lastGpsLat,_lastGpsLng,nlat,nlng);
+    if(d>0.3){_stationFt+=d*3.28084;document.getElementById('station-input').value=fmtStation(_stationFt);}
+  }
+  _lastGpsLat=nlat;_lastGpsLng=nlng;_lat=nlat;_lng=nlng;
+},function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});}
+function haversine(a1,o1,a2,o2){var R=6371000,r=Math.PI/180,d1=a1*r,d2=a2*r,dl=(a2-a1)*r,do2=(o2-o1)*r;var a=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(d1)*Math.cos(d2)*Math.sin(do2/2)*Math.sin(do2/2);return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function fmtStation(ft){var h=Math.floor(ft/100);var r=Math.round(ft%100);return String(h)+'+'+String(r).padStart(2,'0');}
+function toggleAutoStation(){if(document.getElementById('auto-station').checked){_stationFt=0;_lastGpsLat=_lat;_lastGpsLng=_lng;document.getElementById('station-input').value='0+00';}}
+async function toggleConnection(){if(_connected){disconnect();return;}await connectDisto();}
+async function connectDisto(){
+  if(!navigator.bluetooth){alert('Use Chrome or Edge on Windows.');return;}
+  updateConnectUI('connecting','Scanning…');
+  dbg('Requesting DISTO…');
+  try{
+    _device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'DISTO'},{namePrefix:'Leica'},{namePrefix:'disto'}],optionalServices:[DISTO_SVC,'0000180a-0000-1000-8000-00805f9b34fb','0000180f-0000-1000-8000-00805f9b34fb']});
+    dbg('Selected: '+_device.name);
+    _device.addEventListener('gattserverdisconnected',onDisconnected);
+    updateConnectUI('connecting','Connecting…');
+    _server=await _device.gatt.connect();
+    dbg('GATT connected');
+    var svc;
+    try{svc=await _server.getPrimaryService(DISTO_SVC);dbg('✓ Leica service found!');}catch(e){
+      dbg('✕ Leica service NOT found: '+e.message);
+      try{var allSvc=await _server.getPrimaryServices();dbg('Services:');for(var i=0;i<allSvc.length;i++){dbg('  '+allSvc[i].uuid);}}catch(se){}
+      updateConnectUI('disconnected','Leica service not found');return;
+    }
+    dbg('Enumerating characteristics…');
+    var allChars=[];
+    try{allChars=await svc.getCharacteristics();dbg('Found '+allChars.length+':');for(var ci=0;ci<allChars.length;ci++){var ch=allChars[ci];var pr=ch.properties;var flags=[];if(pr.read)flags.push('R');if(pr.write)flags.push('W');if(pr.writeWithoutResponse)flags.push('Wn');if(pr.notify)flags.push('N');if(pr.indicate)flags.push('I');dbg('  '+ch.uuid+' ['+flags.join(',')+']');}}catch(ee){dbg('Enum error: '+ee.message);}
+    dbg('Reading chars for bonding…');
+    for(var bi=0;bi<allChars.length;bi++){if(allChars[bi].properties.read){try{var rv=await allChars[bi].readValue();dbg('  '+allChars[bi].uuid+': '+dataViewToHex(rv));}catch(re){dbg('  '+allChars[bi].uuid+': '+re.message);}}}
+    var subscribed=false;
+    for(var si=0;si<allChars.length;si++){var sc=allChars[si];if(sc.properties.notify||sc.properties.indicate){try{await sc.startNotifications();sc.addEventListener('characteristicvaluechanged',onMeasurement);dbg('✓ Sub '+sc.uuid);subscribed=true;}catch(se){dbg('  Sub '+sc.uuid+': '+se.message);}}}
+    if(!subscribed)dbg('⚠ No subscriptions');
+    _cmdChar=null;
+    for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].uuid.startsWith('3ab10120')){_cmdChar=allChars[wi];dbg('✓ Distocom RX char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}
+    if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
+    if(!_cmdChar)dbg('⚠ No writable char');
+    _connected=true;
+    if(_cmdChar){document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('thick-btn').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');}
+    updateConnectUI('connected','Connected — SHOOT, Edge Drop, or Curb Reveal');
+  }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
+}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('laser-btn2').style.display='none';document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('laser-btn2').style.display='none';document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('station-bar').classList.remove('show');updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+async function shootDisto(){
+  await sendDistocom('raiseEvent 10\r\n');
+  await new Promise(function(r){setTimeout(r,600);});
+  await sendDistocom('raiseEvent 10\r\n');
+}
+async function sendDistocom(str){
+  if(!_cmdChar){alert('Not connected');return;}
+  var bytes=[];for(var i=0;i<str.length;i++)bytes.push(str.charCodeAt(i));
+  dbg('Distocom → "'+str.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'" → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
+    dbg('✓ Sent');
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+async function sendCmd(byte){
+  if(!_cmdChar){alert('Not connected');return;}
+  dbg('Send raw 0x'+byte.toString(16)+' → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array([byte]));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array([byte]));
+    dbg('✓ Sent 0x'+byte.toString(16));
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+async function sendMulti(bytes){
+  if(!_cmdChar){alert('Not connected');return;}
+  var hex=bytes.map(function(b){return '0x'+b.toString(16);}).join(' ');
+  dbg('Send raw ['+hex+'] → '+_cmdChar.uuid);
+  try{
+    if(_cmdChar.properties.writeWithoutResponse)await _cmdChar.writeValueWithoutResponse(new Uint8Array(bytes));
+    else await _cmdChar.writeValueWithResponse(new Uint8Array(bytes));
+    dbg('✓ Sent '+bytes.length+' bytes');
+  }catch(e){dbg('✕ Failed: '+e.message);}
+}
+function onMeasurement(event){
+  var raw=event.target.value;
+  var uuid=event.target.uuid||'';
+  if(uuid.startsWith('3ab10121')){
+    try{var txt=new TextDecoder().decode(raw);dbg('Distocom TX: "'+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n')+'"');}catch(e){dbg('Distocom TX (raw): '+dataViewToHex(raw));}
+    return;
+  }
+  if(uuid.startsWith('3ab10122')){
+    dbg('Event ('+uuid.slice(0,10)+'): '+dataViewToHex(raw));
+    return;
+  }
+  dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
+  if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
+    if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
+    if(_sessionActive){if(_sessionPrompting){dbg('Station prompt open — ignoring shot');return;}if(_sessionRef===null){onSessionARef(dist);}else{addSessionSample(dist);}return;}
+    if(_calActive){onCalMeasurement(dist);return;}
+    var pu=prefUnit();var pv=convertFromM(dist,pu);addMeasurement(pv,pu,'DISTO BLE');return;}}
+  if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
+    if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(mm/1000);return;}
+    addMeasurement(mm,'mm','DISTO BLE');return;}}
+  dbg('Raw data (not parsed as measurement)');
+}
+function dataViewToHex(dv){var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));return h.join(' ');}
+function updateConnectUI(state,text){var btn=document.getElementById('connect-btn');btn.className=state;document.getElementById('connect-icon').textContent=state==='connected'?'✓':state==='connecting'?'⏳':'🔗';document.getElementById('connect-label').textContent=state==='connected'?'Connected':state==='connecting'?'Connecting…':'Connect DISTO';document.getElementById('connect-status').textContent=text;}
+function curStation(){var el=document.getElementById('station-input');return el?el.value.trim():'';}
+function prefUnit(){var el=document.getElementById('unit-pref');return el?el.value:'in';}
+function convertFromM(m,u){if(u==='m')return m;if(u==='mm')return m*1000;if(u==='ft')return m*3.2808399;if(u==='in')return m*39.3701;return m;}
+function distToHeight(distM){if(_calAngle===null)return distM;return distM*Math.sin(_calAngle*Math.PI/180);}
+function setRefAngle(val){var n=parseFloat(val);if(isNaN(n)||n<=0||n>90){_calAngle=null;document.getElementById('ref-angle').value='';document.getElementById('angle-status').textContent='';dbg('Ref angle cleared');return;}_calAngle=n;document.getElementById('angle-status').textContent='h=d×sin('+n+'°)';dbg('Ref angle set: '+n+'° — heights = dist × sin('+n+'°)');}
+var _laserCooldown=false;
+function laserToggle(){
+  if(_laserCooldown||!_cmdChar)return;
+  sendDistocom('raiseEvent 10\r\n');
+  _laserCooldown=true;
+  var btn=document.getElementById('laser-btn2');
+  if(btn){btn.style.opacity='0.4';btn.style.cursor='not-allowed';}
+  var sec=30,iv=setInterval(function(){sec--;if(btn)btn.textContent='🔴 '+sec;if(sec<=0){clearInterval(iv);_laserCooldown=false;if(btn){btn.textContent='🔴 Laser';btn.style.opacity='';btn.style.cursor='pointer';}}},1000);
+}
+function addMeasurement(value,unit,source){
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:value,unit:unit||'m',label:'',notes:'',station:curStation(),lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:source||'Manual',ts:new Date().toISOString()});
+  save();renderLog();setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+}
+function addManual(){var inp=document.getElementById('manual-input'),raw=inp.value.trim();if(!raw)return;var num=parseFloat(raw.replace(/[^0-9.\-]/g,''));if(isNaN(num)){alert('Could not parse: '+raw);return;}var unit=document.getElementById('manual-unit').value;var lower=raw.toLowerCase();if(lower.indexOf('mm')>=0)unit='mm';else if(lower.indexOf('ft')>=0)unit='ft';else if(lower.indexOf('in')>=0)unit='in';else if(lower.indexOf('m')>=0)unit='m';addMeasurement(num,unit,raw.length>6?'DISTO KBD':'Manual');inp.value='';inp.focus();}
+function deleteRow(id){MEAS=MEAS.filter(function(x){return x.id!==id;});save();renderLog();}
+function updateLabel(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.label=val;save();}}
+function updateNotes(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.notes=val;save();}}
+function updateStation(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.station=val;save();}}
+function renderRow(m){
+  var negStyle=(typeof m.value==='number'&&m.value<0)?'color:var(--red);':'';
+  var h='<div class="meas-row">';
+  h+='<input type="checkbox" class="mr-chk" '+(_selected[m.id]?'checked':'')+' onchange="toggleSelect(\''+m.id+'\')">';
+  h+='<div class="mr-num">'+m.num+'</div>';
+  h+='<div class="mr-value" style="'+negStyle+'">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
+  h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label" onchange="updateLabel(\''+m.id+'\',this.value)">';
+  h+='<input class="mr-notes" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
+  h+='<input class="mr-sta" value="'+esc(m.station||'')+'" placeholder="Sta" onchange="updateStation(\''+m.id+'\',this.value)">';
+  if(m.lat&&m.lng){h+='<div class="mr-geo"><div>'+m.lat.toFixed(5)+'</div><div>'+m.lng.toFixed(5)+'</div></div>';}
+  h+='<div class="mr-meta"><span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
+  h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
+  return h;
+}
+function renderSessionSummary(group){
+  var n=group.length;
+  var vals=group.map(function(m){return m.value;});
+  var sum=0,mn=Infinity,mx=-Infinity;
+  for(var i=0;i<n;i++){sum+=vals[i];if(vals[i]<mn)mn=vals[i];if(vals[i]>mx)mx=vals[i];}
+  var avg=sum/n;
+  var variance=0;for(var j=0;j<n;j++){variance+=(vals[j]-avg)*(vals[j]-avg);}
+  var stdev=n>1?Math.sqrt(variance/(n-1)):0;
+  var pu=group[0].unit;
+  var stations=group.map(function(m){return m.station;}).filter(function(s){return s;});
+  var staRange='';
+  if(stations.length>=2){staRange=stations[0]+'–'+stations[stations.length-1];}
+  else if(stations.length===1){staRange=stations[0];}
+  var h='<div class="session-summary">';
+  h+='<div class="ss-title">'+esc(group[0].sessionType||'Group')+'</div>';
+  h+='<div class="ss-row"><span class="ss-lbl">N</span><span class="ss-val">'+n+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">AVG</span><span class="ss-val">'+formatVal(avg,pu)+' '+pu+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">MIN</span><span class="ss-val">'+formatVal(mn,pu)+' '+pu+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">MAX</span><span class="ss-val">'+formatVal(mx,pu)+' '+pu+'</span></div>';
+  h+='<div class="ss-row"><span class="ss-lbl">SD</span><span class="ss-val">'+stdev.toFixed(3)+'</span></div>';
+  if(staRange)h+='<div class="ss-row"><span class="ss-lbl">STA</span><span class="ss-val" style="font-size:10px">'+esc(staRange)+'</span></div>';
+  h+='</div>';
+  return h;
+}
+function renderLog(){
+  var rows=document.getElementById('log-rows'),empty=document.getElementById('empty-state');
+  document.getElementById('meas-count').textContent=MEAS.length+' meas';
+  if(!MEAS.length){empty.style.display='block';rows.innerHTML='';return;}
+  empty.style.display='none';
+  var html='';
+  var i=0;
+  while(i<MEAS.length){
+    var m=MEAS[i];
+    if(m.sessionId){
+      var sid=m.sessionId;
+      var group=[];
+      while(i<MEAS.length&&MEAS[i].sessionId===sid){group.push(MEAS[i]);i++;}
+      var rowsHtml=group.map(renderRow).join('');
+      var hasAvg=group[0].sessionAvg;
+      if(hasAvg){
+        html+='<div class="session-group"><div class="session-rows">'+rowsHtml+'</div>'+renderSessionSummary(group)+'</div>';
+      } else {
+        html+='<div class="session-group no-avg"><div class="session-rows">'+rowsHtml+'</div></div>';
+      }
+    } else {
+      html+=renderRow(m);
+      i++;
+    }
+  }
+  rows.innerHTML=html;
+}
+function formatVal(v,u){if(u==='m')return v.toFixed(4);if(u==='mm')return v.toFixed(1);if(u==='ft')return v.toFixed(3);if(u==='in')return v.toFixed(2);return v.toFixed(4);}
+function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Notes,Station,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),q(m.notes||''),q(m.station||''),q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+'\n';});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
+function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();}
+function toggleDebug(){document.getElementById('debug-panel').classList.toggle('show');}
+function dbg(msg){var el=document.getElementById('debug-log');el.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';el.scrollTop=el.scrollHeight;console.log('[DISTO]',msg);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function q(s){return '"'+String(s||'').replace(/"/g,'""')+'"';}
+function ds(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dl(c,n,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},200);}
+async function calibrateEdgeDrop(){
+  if(!_cmdChar){alert('Connect DISTO first');return;}
+  if(_edgeDropActive)return;
+  var btn=document.getElementById('cal-btn');
+  var status=document.getElementById('cal-status');
+  btn.textContent='📏 Setting ref…';btn.style.background='var(--accent)';btn.style.color='#000';
+  status.textContent='Aim at pavement, firing…';
+  try{
+    var prom=waitForMeasurement(10000);
+    await shootDisto();
+    var dist=await prom;
+    _calRef=distToHeight(dist);_calActive=true;
+    var pu=prefUnit();var refVal=convertFromM(_calRef,pu);
+    dbg('Reference set: '+dist.toFixed(4)+' m'+(_calAngle?' → h='+_calRef.toFixed(4)+'m @'+_calAngle+'°':'')+' = '+refVal.toFixed(2)+' '+pu);
+    btn.textContent='✓ Ref Set';btn.classList.add('active');btn.style.background='var(--green)';btn.style.color='#000';
+    status.textContent='Ref: '+refVal.toFixed(2)+' '+pu+(_calAngle?' @'+_calAngle+'°':'')+' — SHOOT measures drop-off';
+    document.getElementById('cal-clear-btn').style.display='inline';
+    document.getElementById('connect-status').textContent='REF SET'+(_calAngle?' @'+_calAngle+'°':'')+' — every SHOOT = drop-off (ref '+refVal.toFixed(2)+' '+pu+')';
+  }catch(e){
+    dbg('Set reference failed: '+e.message);
+    btn.textContent='📐 Set Reference';btn.style.background='linear-gradient(135deg,var(--blue),var(--accent))';btn.style.color='#fff';
+    status.textContent='Failed — '+e.message;
+  }
+}
+function clearCalibrate(){
+  _calRef=null;_calActive=false;_calAngle=null;
+  document.getElementById('ref-angle').value='';
+  document.getElementById('angle-status').textContent='';
+  document.getElementById('cal-btn').textContent='📐 Set Reference';
+  document.getElementById('cal-btn').classList.remove('active');
+  document.getElementById('cal-btn').style.background='linear-gradient(135deg,var(--blue),var(--accent))';
+  document.getElementById('cal-btn').style.color='#fff';
+  document.getElementById('cal-status').textContent='';
+  document.getElementById('cal-clear-btn').style.display='none';
+  document.getElementById('connect-status').textContent='Connected — reference cleared';
+  dbg('Reference cleared');
+}
+async function onCalMeasurement(distM){
+  var heightM=distToHeight(distM);
+  var pu=prefUnit();
+  var refVal=convertFromM(_calRef,pu);
+  var measVal=convertFromM(heightM,pu);
+  var dropVal=measVal-refVal;
+  dbg('Cal: meas '+measVal.toFixed(2)+' - ref '+refVal.toFixed(2)+' = '+dropVal.toFixed(2)+' '+pu+(_calAngle?' @'+_calAngle+'°':''));
+  var sta=curStation();
+  var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
+  if(!autoSta){sta=await promptStation(sta);}
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:'',notes:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Cal Drop',ts:new Date().toISOString(),rawM:distM,calRefM:_calRef,calAngle:_calAngle});
+  save();renderLog();
+  document.getElementById('connect-status').textContent='Drop: '+dropVal.toFixed(2)+' '+pu+' at Sta '+sta;
+  setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+}
+function parseStation(raw){
+  var digits=raw.replace(/[^0-9]/g,'');
+  if(!digits)return '';
+  digits=digits.padStart(2,'0');
+  var r=digits.slice(-2);
+  var h=digits.slice(0,-2)||'0';
+  return h+'+'+r;
+}
+function promptStation(defaultVal){
+  return new Promise(function(resolve){
+    var overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:20px;width:280px;text-align:center;';
+    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--accent);margin-bottom:12px">Enter Station</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:10px">Type digits only — auto-formats as xx+xx</div>'
+      +'<input id="sta-prompt-input" type="tel" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px;font-size:24px;font-weight:900;text-align:center;background:var(--bg);border:2px solid var(--border);border-radius:12px;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:2px;" placeholder="0000">'
+      +'<div id="sta-prompt-preview" style="font-size:18px;font-weight:800;color:var(--accent);margin:10px 0;height:24px"></div>'
+      +'<div style="display:flex;gap:8px;justify-content:center">'
+      +'<button id="sta-prompt-ok" style="padding:12px 24px;border-radius:10px;border:none;font-size:14px;font-weight:900;cursor:pointer;background:var(--green);color:#000;">OK</button>'
+      +'<button id="sta-prompt-skip" style="padding:12px 24px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--muted);border:1px solid var(--border);">Skip</button>'
+      +'</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var inp=document.getElementById('sta-prompt-input');
+    var preview=document.getElementById('sta-prompt-preview');
+    var defDigits=defaultVal.replace(/[^0-9]/g,'');
+    inp.value=defDigits;
+    preview.textContent=parseStation(defDigits);
+    inp.addEventListener('input',function(){preview.textContent=parseStation(inp.value);});
+    function finish(val){document.body.removeChild(overlay);var s=parseStation(val);document.getElementById('station-input').value=s;resolve(s);}
+    document.getElementById('sta-prompt-ok').onclick=function(){finish(inp.value);};
+    document.getElementById('sta-prompt-skip').onclick=function(){finish(inp.value||defDigits);};
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();finish(inp.value);}});
+    setTimeout(function(){inp.focus();inp.select();},100);
+  });
+}
+function waitForMeasurement(ms){
+  return new Promise(function(resolve,reject){
+    _pendingMeasResolve=resolve;
+    var t=setTimeout(function(){if(_pendingMeasResolve===resolve){_pendingMeasResolve=null;reject(new Error('Timeout'));}},ms||10000);
+  });
+}
+function toggleSession(type){
+  if(_sessionActive){endSession();return;}
+  if(!_cmdChar){alert('Connect DISTO first');return;}
+  _sessionType=type||'Measurement';
+  _sessionBtnId=type==='Curb Reveal'?'curb-btn':(type==='Thickness'?'thick-btn':'edrop-btn');
+  _sessionActive=true;
+  _sessionRef=null;
+  _sessionSamples=[];
+  _sessionId='s'+Date.now();
+  _sessionPrompting=false;
+  _sessionGpsStart=(_lat&&_lng)?{lat:_lat,lng:_lng}:null;
+  _sessionStartSta=curStation();
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ End '+_sessionType;
+  btn.style.background='var(--red)';btn.style.color='#fff';
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT (A ref)';
+  document.getElementById('connect-status').textContent=_sessionType+' — aim at reference, then SHOOT';
+  dbg(_sessionType+' session '+_sessionId+' — awaiting A ref');
+}
+function onSessionARef(distM){
+  _sessionRef=distToHeight(distM);
+  var pu=prefUnit();
+  var refVal=convertFromM(_sessionRef,pu);
+  dbg(_sessionType+' A ref='+distM.toFixed(4)+'m'+(_calAngle?' → h='+_sessionRef.toFixed(4)+'m @'+_calAngle+'°':'')+' ('+refVal.toFixed(2)+' '+pu+')');
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT (B)';
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ '+_sessionType+' (0)';
+  document.getElementById('connect-status').textContent=_sessionType+' ref='+refVal.toFixed(2)+' '+pu+(_calAngle?' @'+_calAngle+'°':'')+' — SHOOT for each B';
+}
+async function addSessionSample(distM){
+  var aM=_sessionRef;
+  var bM=distToHeight(distM);
+  var dropM=bM-aM;
+  var pu=prefUnit();
+  var dropVal=convertFromM(dropM,pu);
+  var sta=curStation();
+  var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
+  if(!autoSta){
+    _sessionPrompting=true;
+    try{sta=await promptStation(sta);}
+    finally{_sessionPrompting=false;}
+  }
+  if(!_sessionActive)return;
+  var idx=_sessionSamples.length+1;
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+idx,ts:new Date().toISOString(),rawBM:distM,calRefM:aM,sessionId:_sessionId,sessionType:_sessionType});
+  _sessionSamples.push({drop:dropVal,unit:pu,station:sta});
+  save();renderLog();
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ '+_sessionType+' ('+_sessionSamples.length+')';
+  var sign=dropM>=0?' ↓drop':' ↑rise';
+  document.getElementById('connect-status').textContent=_sessionType+' #'+_sessionSamples.length+': '+dropVal.toFixed(2)+' '+pu+sign+' @ '+sta;
+  dbg(_sessionType+' B#'+_sessionSamples.length+': '+dropVal.toFixed(3)+' '+pu+' @ '+sta);
+  setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+}
+function endSession(){
+  var n=_sessionSamples.length;
+  var endedType=_sessionType;
+  _sessionActive=false;
+  _sessionPrompting=false;
+  _sessionRef=null;
+  _sessionSamples=[];
+  _sessionId='';
+  resetSessionBtns();
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT';
+  if(n===0){document.getElementById('connect-status').textContent=endedType+' session ended — no B readings';}
+  else{document.getElementById('connect-status').textContent=endedType+' session ended — '+n+' readings logged';}
+  dbg(endedType+' session ended ('+n+' B readings)');
+}
+function resetSessionBtns(){
+  var e=document.getElementById('edrop-btn');if(e){e.textContent='📐 Edge Drop';e.style.background='linear-gradient(135deg,var(--blue),var(--accent))';e.style.color='#fff';}
+  var c=document.getElementById('curb-btn');if(c){c.textContent='📏 Curb Reveal';c.style.background='linear-gradient(135deg,var(--green),var(--blue))';c.style.color='#fff';}
+  var t=document.getElementById('thick-btn');if(t){t.textContent='📚 Thickness';t.style.background='linear-gradient(135deg,#a855f7,var(--accent))';t.style.color='#fff';}
+}
+function parseStationToFt(sta){
+  if(!sta)return 0;
+  var p=sta.split('+');
+  if(p.length===2)return(parseInt(p[0],10)||0)*100+(parseInt(p[1],10)||0);
+  return parseFloat(sta.replace(/[^0-9.]/g,''))||0;
+}
+function toggleSelect(id){_selected[id]=!_selected[id];if(!_selected[id])delete _selected[id];updateSelBar();}
+function selCount(){return Object.keys(_selected).length;}
+function updateSelBar(){var n=selCount();var bar=document.getElementById('sel-bar');bar.style.display=n>0?'flex':'none';document.getElementById('sel-count').textContent=n+' selected';}
+function clearSelection(){_selected={};renderLog();updateSelBar();}
+function groupSelected(){
+  var ids=Object.keys(_selected);
+  if(ids.length<2){alert('Select at least 2 rows to group');return;}
+  var gid='g'+Date.now();
+  var grouped=[],remaining=[];
+  var insertAt=0,foundFirst=false;
+  for(var i=0;i<MEAS.length;i++){
+    if(_selected[MEAS[i].id]){
+      if(!foundFirst){insertAt=remaining.length;foundFirst=true;}
+      grouped.push(MEAS[i]);
+    }else{remaining.push(MEAS[i]);}
+  }
+  var labels=grouped.map(function(m){return m.label||'';});
+  var uniq=labels.filter(function(v,i,a){return a.indexOf(v)===i;});
+  var groupType=(uniq.length===1&&uniq[0])?uniq[0]:'Group';
+  grouped.forEach(function(m){m.sessionId=gid;m.sessionAvg=true;m.sessionType=groupType;});
+  MEAS=[].concat(remaining.slice(0,insertAt),grouped,remaining.slice(insertAt));
+  _selected={};
+  save();renderLog();updateSelBar();
+}
+load();renderLog();startGPS();
+dbg('DISTO Logger ready.');
+</script>
+</body>
+</html>
