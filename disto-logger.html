@@ -98,8 +98,8 @@ select,input,textarea{font-size:16px !important;}
     <span id="connect-status">Unpair from Windows first, then connect here</span>
     <button id="shoot-btn" onclick="shootDisto()">🎯 SHOOT</button>
     <button id="laser-btn2" onclick="laserToggle()" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;background:var(--bg);border:1px solid var(--red);color:var(--red);">🔴 Laser</button>
-    <button id="edrop-btn" onclick="toggleAvgMode('Edge Drop')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
-    <button id="curb-btn" onclick="toggleAvgMode('Curb Reveal')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
+    <button id="edrop-btn" onclick="toggleSession('Edge Drop')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
+    <button id="curb-btn" onclick="toggleSession('Curb Reveal')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
   </div>
   <div id="station-bar">
     <span class="sta-label">Station:</span>
@@ -155,6 +155,8 @@ var MEAS=[],_lat=null,_lng=null,_nextNum=1,_armedTag='';
 var _device=null,_server=null,_cmdChar=null,_connected=false;
 var _pendingMeasResolve=null,_edgeDropActive=false;
 var _calRef=null,_calActive=false;
+var _sessionActive=false,_sessionRef=null,_sessionType='',_sessionBtnId='';
+var _sessionSamples=[],_sessionGpsStart=null,_sessionStartSta='';
 var _lastGpsLat=null,_lastGpsLng=null,_stationFt=0;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
@@ -261,7 +263,7 @@ function onMeasurement(event){
   dbg('Data from '+uuid.slice(0,10)+' ('+raw.byteLength+'B): '+dataViewToHex(raw));
   if(raw.byteLength>=4){var dist=raw.getFloat32(0,true);if(dist>0.001&&dist<300){dbg('✓ '+dist.toFixed(4)+' m ('+(dist*3.2808399).toFixed(3)+' ft)');
     if(_pendingMeasResolve){var r=_pendingMeasResolve;_pendingMeasResolve=null;r(dist);return;}
-    if(_avgMode){addAvgSample(dist);return;}
+    if(_sessionActive){if(_sessionRef===null){onSessionARef(dist);}else{addSessionSample(dist);}return;}
     if(_calActive){onCalMeasurement(dist);return;}
     var pu=prefUnit();var pv=convertFromM(dist,pu);addMeasurement(pv,pu,'DISTO BLE');return;}}
   if(raw.byteLength>=2){var mm=raw.getUint16(0,true);if(mm>1&&mm<60000){dbg('✓ '+mm+' mm');
@@ -306,7 +308,7 @@ function renderLog(){
     h+='<div class="mr-num">'+m.num+'</div>';
     h+='<div class="mr-value">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
     h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
-    h+='<input style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);width:70px;min-width:0;flex-shrink:1;" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
+    h+='<input style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);width:140px;min-width:0;flex-shrink:1;" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
     h+='<div class="mr-meta">';
     if(m.station)h+='<span style="color:var(--accent)">'+esc(m.station)+'</span>';
     h+='<span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
@@ -327,7 +329,7 @@ function updateCalc(){
   document.getElementById('calc-result').textContent=(aIn!==null&&bIn!==null)?Math.abs(aIn-bIn).toFixed(2)+' in':'—';
 }
 function saveCalcAsRow(){var a=MEAS.find(function(m){return m.tag==='a';}),b=MEAS.find(function(m){return m.tag==='b';});if(!a||!b){alert('Tag A and B first');return;}addMeasurement(Math.abs(toInches(a.value,a.unit)-toInches(b.value,b.unit)),'in','Calc (A−B)');MEAS[MEAS.length-1].label='Edge drop-off';}
-function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Notes,Tag,Station,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),q(m.notes||''),m.tag||'',q(m.station||''),q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+"\n";});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
+function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Notes,Tag,Station,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),q(m.notes||''),m.tag||'',q(m.station||''),q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+'\n';});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
 function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();updateCalc();}
 function toggleDebug(){document.getElementById('debug-panel').classList.toggle('show');}
 function dbg(msg){var el=document.getElementById('debug-log');el.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';el.scrollTop=el.scrollHeight;console.log('[DISTO]',msg);}
@@ -427,53 +429,133 @@ function waitForMeasurement(ms){
     var t=setTimeout(function(){if(_pendingMeasResolve===resolve){_pendingMeasResolve=null;reject(new Error('Timeout'));}},ms||10000);
   });
 }
-var _avgMode=false,_avgSamples=[],_avgType='',_avgBtnId='';
-function toggleAvgMode(type){
-  if(_avgMode){finishAvgMode();return;}
-  _avgMode=true;_avgSamples=[];_avgType=type||'Measurement';
-  _avgBtnId=type==='Curb Reveal'?'curb-btn':'edrop-btn';
-  var btn=document.getElementById(_avgBtnId);
-  btn.textContent='⏹ '+_avgType+' (0)';btn.style.background='var(--accent)';btn.style.color='#000';
-  document.getElementById('connect-status').textContent=_avgType.toUpperCase()+' — SHOOT to add samples, tap button again to finish';
-  dbg(_avgType+' averaging started');
+function toggleSession(type){
+  if(_sessionActive){endSession();return;}
+  if(!_cmdChar){alert('Connect DISTO first');return;}
+  _sessionType=type||'Measurement';
+  _sessionBtnId=type==='Curb Reveal'?'curb-btn':'edrop-btn';
+  _sessionActive=true;
+  _sessionRef=null;
+  _sessionSamples=[];
+  _sessionGpsStart=(_lat&&_lng)?{lat:_lat,lng:_lng}:null;
+  _sessionStartSta=curStation();
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ End '+_sessionType;
+  btn.style.background='var(--red)';btn.style.color='#fff';
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT (A ref)';
+  document.getElementById('connect-status').textContent=_sessionType+' — aim at reference surface, then SHOOT';
+  dbg(_sessionType+' session started — awaiting A reference shot');
 }
-function addAvgSample(distM){
-  var pu=prefUnit();var pv=convertFromM(distM,pu);
-  _avgSamples.push(pv);
-  var btn=document.getElementById(_avgBtnId);
-  btn.textContent='⏹ '+_avgType+' ('+_avgSamples.length+')';
-  document.getElementById('connect-status').textContent=_avgType+' #'+_avgSamples.length+': '+formatVal(pv,pu)+' '+pu;
-  dbg(_avgType+' sample '+_avgSamples.length+': '+pv.toFixed(4)+' '+pu);
-}
-function finishAvgMode(){
-  _avgMode=false;
-  resetAvgBtns();
-  if(_avgSamples.length===0){document.getElementById('connect-status').textContent='No samples collected';return;}
-  var n=_avgSamples.length;
-  var sum=0;var mn=Infinity;var mx=-Infinity;
-  for(var i=0;i<n;i++){sum+=_avgSamples[i];if(_avgSamples[i]<mn)mn=_avgSamples[i];if(_avgSamples[i]>mx)mx=_avgSamples[i];}
-  var avg=sum/n;
-  var variance=0;for(var j=0;j<n;j++){variance+=(_avgSamples[j]-avg)*(_avgSamples[j]-avg);}
-  var stdev=n>1?Math.sqrt(variance/(n-1)):0;
+function onSessionARef(distM){
+  _sessionRef=distM;
   var pu=prefUnit();
-  var lbl='avg:'+formatVal(avg,pu)+' min:'+formatVal(mn,pu)+' max:'+formatVal(mx,pu)+' sd:'+stdev.toFixed(3)+' n='+n;
-  dbg(_avgType+' done: '+lbl);
-  var sta=curStation();
-  var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
-  if(!autoSta){promptStation(sta).then(function(s){
-    pushAvgRow(avg,pu,lbl,s,n,mn,mx,stdev);
-  });}else{pushAvgRow(avg,pu,lbl,sta,n,mn,mx,stdev);}
+  var refVal=convertFromM(distM,pu);
+  dbg(_sessionType+' A ref='+distM.toFixed(4)+'m ('+refVal.toFixed(2)+' '+pu+')');
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT (B)';
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ '+_sessionType+' (0)';
+  document.getElementById('connect-status').textContent=_sessionType+' ref='+refVal.toFixed(2)+' '+pu+' — reposition, SHOOT for each B reading';
 }
-function pushAvgRow(avg,pu,lbl,sta,n,mn,mx,stdev){
-  MEAS.push({id:'m'+Date.now()+'av',num:_nextNum++,value:avg,unit:pu,label:lbl,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_avgType+' (n='+n+')',ts:new Date().toISOString(),avgData:{samples:_avgSamples.slice(),min:mn,max:mx,stdev:stdev,count:n}});
+function addSessionSample(distM){
+  var aM=_sessionRef;
+  var dropM=aM-distM;
+  var pu=prefUnit();
+  var dropVal=convertFromM(Math.abs(dropM),pu);
+  var sta=curStation();
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+(_sessionSamples.length+1),ts:new Date().toISOString(),rawBM:distM,calRefM:aM});
+  _sessionSamples.push({drop:dropVal,unit:pu,station:sta});
   save();renderLog();updateCalc();
-  document.getElementById('connect-status').textContent=_avgType+': '+formatVal(avg,pu)+' '+pu+' (n='+n+')';
-  _avgSamples=[];
+  var btn=document.getElementById(_sessionBtnId);
+  btn.textContent='⏹ '+_sessionType+' ('+_sessionSamples.length+')';
+  var sign=dropM>=0?' ↓drop':' ↑rise';
+  document.getElementById('connect-status').textContent=_sessionType+' #'+_sessionSamples.length+': '+dropVal.toFixed(2)+' '+pu+sign;
+  dbg(_sessionType+' B#'+_sessionSamples.length+': drop='+dropVal.toFixed(3)+' '+pu);
   setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
 }
-function resetAvgBtns(){
-  var e=document.getElementById('edrop-btn');e.textContent='📐 Edge Drop';e.style.background='linear-gradient(135deg,var(--blue),var(--accent))';e.style.color='#fff';
-  var c=document.getElementById('curb-btn');c.textContent='📏 Curb Reveal';c.style.background='linear-gradient(135deg,var(--green),var(--blue))';c.style.color='#fff';
+async function endSession(){
+  _sessionActive=false;
+  resetSessionBtns();
+  document.getElementById('shoot-btn').textContent='🎯 SHOOT';
+  var samples=_sessionSamples.slice();
+  _sessionSamples=[];
+  if(samples.length===0){document.getElementById('connect-status').textContent='Session ended — no B readings taken';return;}
+  var n=samples.length;
+  var vals=samples.map(function(s){return s.drop;});
+  var sum=0,mn=Infinity,mx=-Infinity;
+  for(var i=0;i<n;i++){sum+=vals[i];if(vals[i]<mn)mn=vals[i];if(vals[i]>mx)mx=vals[i];}
+  var avg=sum/n;
+  var variance=0;for(var j=0;j<n;j++){variance+=(vals[j]-avg)*(vals[j]-avg);}
+  var stdev=n>1?Math.sqrt(variance/(n-1)):0;
+  var pu=samples[0].unit;
+  dbg(_sessionType+' end: n='+n+' avg='+avg.toFixed(3)+' min='+mn.toFixed(3)+' max='+mx.toFixed(3)+' sd='+stdev.toFixed(3)+' '+pu);
+  var stationRange=await promptStationRange(_sessionStartSta,curStation(),_sessionGpsStart,_lat,_lng);
+  var summaryLabel=_sessionType+' (n='+n+')';
+  var summaryNotes='avg:'+avg.toFixed(2)+' min:'+mn.toFixed(2)+' max:'+mx.toFixed(2)+' sd:'+stdev.toFixed(2)+' '+pu;
+  var summaryStation=stationRange.start+(stationRange.end?'–'+stationRange.end:'');
+  MEAS.push({id:'m'+Date.now()+'sum',num:_nextNum++,value:avg,unit:pu,label:summaryLabel,notes:summaryNotes,tag:'',station:summaryStation,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' Avg',ts:new Date().toISOString(),summaryData:{avg:avg,min:mn,max:mx,stdev:stdev,count:n,startSta:stationRange.start,endSta:stationRange.end}});
+  save();renderLog();updateCalc();
+  document.getElementById('connect-status').textContent=_sessionType+' done: avg '+avg.toFixed(2)+' '+pu+' (n='+n+')';
+  setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+}
+function resetSessionBtns(){
+  var e=document.getElementById('edrop-btn');if(e){e.textContent='📐 Edge Drop';e.style.background='linear-gradient(135deg,var(--blue),var(--accent))';e.style.color='#fff';}
+  var c=document.getElementById('curb-btn');if(c){c.textContent='📏 Curb Reveal';c.style.background='linear-gradient(135deg,var(--green),var(--blue))';c.style.color='#fff';}
+}
+function parseStationToFt(sta){
+  if(!sta)return 0;
+  var p=sta.split('+');
+  if(p.length===2)return(parseInt(p[0],10)||0)*100+(parseInt(p[1],10)||0);
+  return parseFloat(sta.replace(/[^0-9.]/g,''))||0;
+}
+function promptStationRange(startDef,endDef,gpsStart,gpsEndLat,gpsEndLng){
+  return new Promise(function(resolve){
+    var gpsEndSta='';
+    if(gpsStart&&gpsEndLat&&gpsEndLng){
+      var m=haversine(gpsStart.lat,gpsStart.lng,gpsEndLat,gpsEndLng);
+      gpsEndSta=fmtStation(parseStationToFt(startDef)+m*3.28084);
+    }
+    var overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    var box=document.createElement('div');
+    box.style.cssText='background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:20px;width:320px;text-align:center;';
+    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--accent);margin-bottom:10px">Session Complete — Enter Stations</div>'
+      +'<div style="display:flex;gap:10px;margin-bottom:10px">'
+      +'<div style="flex:1"><div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">START STATION</div>'
+      +'<input id="ssr-start" type="tel" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:10px;font-size:18px;font-weight:900;text-align:center;background:var(--bg);border:2px solid var(--border);border-radius:10px;color:var(--text);" placeholder="0000">'
+      +'<div id="ssr-start-p" style="font-size:13px;font-weight:800;color:var(--accent);margin-top:4px;height:18px"></div></div>'
+      +'<div style="display:flex;align-items:center;padding-top:20px;font-size:18px;color:var(--muted)">→</div>'
+      +'<div style="flex:1"><div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">END STATION</div>'
+      +'<input id="ssr-end" type="tel" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:10px;font-size:18px;font-weight:900;text-align:center;background:var(--bg);border:2px solid var(--border);border-radius:10px;color:var(--text);" placeholder="0000">'
+      +'<div id="ssr-end-p" style="font-size:13px;font-weight:800;color:var(--accent);margin-top:4px;height:18px"></div></div>'
+      +'</div>'
+      +(gpsEndSta?'<button id="ssr-gps" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--blue);background:rgba(59,130,246,.15);color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px">📍 GPS end: '+gpsEndSta+'</button>':'')
+      +'<div style="display:flex;gap:8px;justify-content:center">'
+      +'<button id="ssr-ok" style="padding:12px 24px;border-radius:10px;border:none;font-size:14px;font-weight:900;cursor:pointer;background:var(--green);color:#000;">OK</button>'
+      +'<button id="ssr-skip" style="padding:12px 16px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--muted);border:1px solid var(--border);">Skip</button>'
+      +'</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var si=document.getElementById('ssr-start'),ei=document.getElementById('ssr-end');
+    var sp=document.getElementById('ssr-start-p'),ep=document.getElementById('ssr-end-p');
+    var sd=(startDef||'').replace(/[^0-9]/g,''),ed=(endDef||'').replace(/[^0-9]/g,'');
+    si.value=sd;sp.textContent=parseStation(sd);
+    ei.value=ed;ep.textContent=parseStation(ed);
+    si.addEventListener('input',function(){sp.textContent=parseStation(si.value);});
+    ei.addEventListener('input',function(){ep.textContent=parseStation(ei.value);});
+    if(gpsEndSta){document.getElementById('ssr-gps').onclick=function(){var gd=gpsEndSta.replace(/[^0-9]/g,'');ei.value=gd;ep.textContent=gpsEndSta;};}
+    function finish(skip){
+      document.body.removeChild(overlay);
+      var s=parseStation(si.value)||startDef||'0+00';
+      var e=skip?'':parseStation(ei.value)||'';
+      document.getElementById('station-input').value=e||s;
+      resolve({start:s,end:e});
+    }
+    document.getElementById('ssr-ok').onclick=function(){finish(false);};
+    document.getElementById('ssr-skip').onclick=function(){finish(true);};
+    si.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();ei.focus();}});
+    ei.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();finish(false);}});
+    setTimeout(function(){si.focus();},100);
+  });
 }
 load();renderLog();updateCalc();startGPS();
 dbg('DISTO Logger ready.');
