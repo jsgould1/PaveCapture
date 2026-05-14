@@ -35,28 +35,19 @@ select,input,textarea{font-size:16px !important;}
 #empty-state h3{font-size:18px;color:var(--accent);font-weight:800;margin-bottom:8px;}
 #empty-state p{font-size:13px;line-height:1.6;max-width:420px;margin:0 auto;}
 .meas-row{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;margin-bottom:2px;display:flex;align-items:center;gap:6px;min-height:0;}
-.meas-row.tagged{border-color:var(--accent);}
 .meas-row .mr-chk{accent-color:var(--accent);flex-shrink:0;width:16px;height:16px;margin:0;cursor:pointer;}
 .meas-row .mr-num{color:var(--accent);font-size:11px;font-weight:800;flex-shrink:0;min-width:18px;text-align:right;}
 .meas-row .mr-value{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;flex-shrink:0;}
 .meas-row .mr-value .unit{font-size:11px;color:var(--muted);font-weight:600;margin-left:2px;}
-.meas-row .mr-label{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:13px;font-weight:700;color:var(--accent);flex:1;min-width:0;}
+.meas-row .mr-label{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:13px;font-weight:700;color:var(--accent);width:80px;min-width:0;flex-shrink:1;}
 .meas-row .mr-label:focus{border-color:var(--accent);}
+.meas-row .mr-notes{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);flex:1;min-width:0;}
+.meas-row .mr-sta{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:12px;font-weight:700;color:var(--accent);width:60px;text-align:center;flex-shrink:0;}
+.meas-row .mr-sta:focus{border-color:var(--accent);}
+.meas-row .mr-geo{font-size:7px;color:var(--muted);line-height:1.2;flex-shrink:0;min-width:58px;font-variant-numeric:tabular-nums;}
 .meas-row .mr-meta{font-size:9px;color:var(--muted);display:flex;gap:4px;flex-shrink:0;align-items:center;}
-.meas-row .mr-tag{padding:1px 5px;border-radius:4px;font-size:9px;font-weight:800;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);}
-.meas-row .mr-tag.a{background:rgba(59,130,246,.2);color:var(--blue);border-color:var(--blue);}
-.meas-row .mr-tag.b{background:rgba(245,158,11,.2);color:var(--accent);border-color:var(--accent);}
 .meas-row .mr-del{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
 .meas-row .mr-del:hover{color:var(--red);}
-#calc-panel{background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;flex-shrink:0;}
-#calc-panel h4{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
-.calc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.calc-val{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:16px;font-weight:800;color:var(--text);min-width:80px;text-align:center;font-variant-numeric:tabular-nums;}
-.calc-val.a{border-color:var(--blue);color:var(--blue);}
-.calc-val.b{border-color:var(--accent);color:var(--accent);}
-.calc-op{font-size:18px;font-weight:900;color:var(--muted);}
-.calc-result{background:var(--green);color:#000;border-radius:8px;padding:8px 14px;font-size:16px;font-weight:900;min-width:100px;text-align:center;}
-.calc-label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px;}
 #bottom-bar{background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;}
 #manual-input{flex:1;min-width:120px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;}
 #manual-input:focus{border-color:var(--accent);outline:none;}
@@ -134,27 +125,14 @@ select,input,textarea{font-size:16px !important;}
       3. Tap <b>🔗 Connect DISTO</b> — pick it from the list<br>
       4. If Chrome shows a pairing prompt, <b>accept it</b><br>
       5. Tap <b>🎯 SHOOT</b> — laser turns on, fires after 600ms, measurement auto-logs<br><br>
-      Manual entry also works below. <b style="color:var(--blue)">A Next</b> / <b style="color:var(--accent)">B Next</b> pre-tags for drop-off.</p>
+      Manual entry also works below.</p>
     </div>
     <div id="log-rows"></div>
-  </div>
-  <div id="calc-panel" style="display:none">
-    <h4>📐 Edge Drop-Off (A − B)</h4>
-    <div class="calc-row">
-      <div><div class="calc-val a" id="calc-a">—</div><div class="calc-label">A: Pavement</div></div>
-      <div class="calc-op">−</div>
-      <div><div class="calc-val b" id="calc-b">—</div><div class="calc-label">B: Shoulder</div></div>
-      <div class="calc-op">=</div>
-      <div><div class="calc-result" id="calc-result">—</div><div class="calc-label">Drop-Off</div></div>
-      <div style="margin-left:auto"><button onclick="saveCalcAsRow()" class="bottom-btn" style="background:var(--green);color:#000;font-size:11px;padding:8px 12px">💾 Log</button></div>
-    </div>
   </div>
   <div id="bottom-bar">
     <input type="text" id="manual-input" placeholder="Manual entry or DISTO keyboard…" onkeydown="if(event.key==='Enter'){event.preventDefault();addManual();}">
     <select id="manual-unit"><option value="ft">ft</option><option value="in">in</option><option value="m">m</option><option value="mm">mm</option></select>
     <button class="bottom-btn" onclick="addManual()" style="background:var(--accent);color:#000;">+ Add</button>
-    <button class="bottom-btn" id="btn-tag-a" onclick="armTag('a')" style="background:rgba(59,130,246,.2);color:var(--blue);border:1px solid var(--blue);">A Next</button>
-    <button class="bottom-btn" id="btn-tag-b" onclick="armTag('b')" style="background:rgba(245,158,11,.2);color:var(--accent);border:1px solid var(--accent);">B Next</button>
   </div>
 </div>
 <div id="debug-panel">
@@ -165,7 +143,7 @@ select,input,textarea{font-size:16px !important;}
   <div id="debug-log"></div>
 </div>
 <script>
-var MEAS=[],_lat=null,_lng=null,_nextNum=1,_armedTag='';
+var MEAS=[],_lat=null,_lng=null,_nextNum=1;
 var _device=null,_server=null,_cmdChar=null,_connected=false;
 var _pendingMeasResolve=null,_edgeDropActive=false;
 var _calRef=null,_calActive=false;
@@ -289,8 +267,6 @@ function onMeasurement(event){
 }
 function dataViewToHex(dv){var h=[];for(var i=0;i<dv.byteLength;i++)h.push(dv.getUint8(i).toString(16).padStart(2,'0'));return h.join(' ');}
 function updateConnectUI(state,text){var btn=document.getElementById('connect-btn');btn.className=state;document.getElementById('connect-icon').textContent=state==='connected'?'✓':state==='connecting'?'⏳':'🔗';document.getElementById('connect-label').textContent=state==='connected'?'Connected':state==='connecting'?'Connecting…':'Connect DISTO';document.getElementById('connect-status').textContent=text;}
-function armTag(tag){_armedTag=(_armedTag===tag)?'':tag;updateArmUI();}
-function updateArmUI(){var a=document.getElementById('btn-tag-a'),b=document.getElementById('btn-tag-b');a.textContent=_armedTag==='a'?'▶ A ARMED':'A Next';b.textContent=_armedTag==='b'?'▶ B ARMED':'B Next';a.style.borderWidth=_armedTag==='a'?'3px':'1px';b.style.borderWidth=_armedTag==='b'?'3px':'1px';}
 function curStation(){var el=document.getElementById('station-input');return el?el.value.trim():'';}
 function prefUnit(){var el=document.getElementById('unit-pref');return el?el.value:'in';}
 function convertFromM(m,u){if(u==='m')return m;if(u==='mm')return m*1000;if(u==='ft')return m*3.2808399;if(u==='in')return m*39.3701;return m;}
@@ -304,29 +280,25 @@ function laserToggle(){
   var sec=30,iv=setInterval(function(){sec--;if(btn)btn.textContent='🔴 '+sec;if(sec<=0){clearInterval(iv);_laserCooldown=false;if(btn){btn.textContent='🔴 Laser';btn.style.opacity='';btn.style.cursor='pointer';}}},1000);
 }
 function addMeasurement(value,unit,source){
-  var autoTag=_armedTag;if(autoTag){MEAS.forEach(function(m){if(m.tag===autoTag)m.tag='';});_armedTag='';updateArmUI();}
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:value,unit:unit||'m',label:'',notes:'',tag:autoTag,station:curStation(),lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:source||'Manual',ts:new Date().toISOString()});
-  save();renderLog();updateCalc();setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:value,unit:unit||'m',label:'',notes:'',station:curStation(),lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:source||'Manual',ts:new Date().toISOString()});
+  save();renderLog();setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
 }
 function addManual(){var inp=document.getElementById('manual-input'),raw=inp.value.trim();if(!raw)return;var num=parseFloat(raw.replace(/[^0-9.\-]/g,''));if(isNaN(num)){alert('Could not parse: '+raw);return;}var unit=document.getElementById('manual-unit').value;var lower=raw.toLowerCase();if(lower.indexOf('mm')>=0)unit='mm';else if(lower.indexOf('ft')>=0)unit='ft';else if(lower.indexOf('in')>=0)unit='in';else if(lower.indexOf('m')>=0)unit='m';addMeasurement(num,unit,raw.length>6?'DISTO KBD':'Manual');inp.value='';inp.focus();}
-function tagRow(id,tag){MEAS.forEach(function(m){if(m.tag===tag)m.tag='';});var m=MEAS.find(function(x){return x.id===id;});if(m)m.tag=tag;save();renderLog();updateCalc();}
-function deleteRow(id){MEAS=MEAS.filter(function(x){return x.id!==id;});save();renderLog();updateCalc();}
+function deleteRow(id){MEAS=MEAS.filter(function(x){return x.id!==id;});save();renderLog();}
 function updateLabel(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.label=val;save();}}
 function updateNotes(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.notes=val;save();}}
-function toInches(v,u){if(u==='in')return v;if(u==='ft')return v*12;if(u==='m')return v*39.3701;if(u==='mm')return v/25.4;return v;}
+function updateStation(id,val){var m=MEAS.find(function(x){return x.id===id;});if(m){m.station=val;save();}}
 function renderRow(m){
   var negStyle=(typeof m.value==='number'&&m.value<0)?'color:var(--red);':'';
-  var h='<div class="meas-row'+((m.tag)?' tagged':'')+'">';
+  var h='<div class="meas-row">';
   h+='<input type="checkbox" class="mr-chk" '+(_selected[m.id]?'checked':'')+' onchange="toggleSelect(\''+m.id+'\')">';
   h+='<div class="mr-num">'+m.num+'</div>';
   h+='<div class="mr-value" style="'+negStyle+'">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
-  h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
-  h+='<input style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:11px;color:var(--muted);width:140px;min-width:0;flex-shrink:1;" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
-  h+='<div class="mr-meta">';
-  if(m.station)h+='<span style="color:var(--accent)">'+esc(m.station)+'</span>';
-  h+='<span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
-  h+='<span class="mr-tag'+(m.tag==='a'?' a':'')+'" onclick="tagRow(\''+m.id+'\',\'a\')">A</span>';
-  h+='<span class="mr-tag'+(m.tag==='b'?' b':'')+'" onclick="tagRow(\''+m.id+'\',\'b\')">B</span>';
+  h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label" onchange="updateLabel(\''+m.id+'\',this.value)">';
+  h+='<input class="mr-notes" value="'+esc(m.notes||'')+'" placeholder="Notes" onchange="updateNotes(\''+m.id+'\',this.value)">';
+  h+='<input class="mr-sta" value="'+esc(m.station||'')+'" placeholder="Sta" onchange="updateStation(\''+m.id+'\',this.value)">';
+  if(m.lat&&m.lng){h+='<div class="mr-geo"><div>'+m.lat.toFixed(5)+'</div><div>'+m.lng.toFixed(5)+'</div></div>';}
+  h+='<div class="mr-meta"><span>'+new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span></div>';
   h+='<button class="mr-del" onclick="deleteRow(\''+m.id+'\')" title="Delete">✕</button></div>';
   return h;
 }
@@ -382,18 +354,8 @@ function renderLog(){
   rows.innerHTML=html;
 }
 function formatVal(v,u){if(u==='m')return v.toFixed(4);if(u==='mm')return v.toFixed(1);if(u==='ft')return v.toFixed(3);if(u==='in')return v.toFixed(2);return v.toFixed(4);}
-function updateCalc(){
-  var a=MEAS.find(function(m){return m.tag==='a';}),b=MEAS.find(function(m){return m.tag==='b';});
-  var panel=document.getElementById('calc-panel');
-  if(!a&&!b){panel.style.display='none';return;}panel.style.display='block';
-  var aIn=a?toInches(a.value,a.unit):null,bIn=b?toInches(b.value,b.unit):null;
-  document.getElementById('calc-a').textContent=a?(formatVal(a.value,a.unit)+' '+a.unit):'—';
-  document.getElementById('calc-b').textContent=b?(formatVal(b.value,b.unit)+' '+b.unit):'—';
-  document.getElementById('calc-result').textContent=(aIn!==null&&bIn!==null)?Math.abs(aIn-bIn).toFixed(2)+' in':'—';
-}
-function saveCalcAsRow(){var a=MEAS.find(function(m){return m.tag==='a';}),b=MEAS.find(function(m){return m.tag==='b';});if(!a||!b){alert('Tag A and B first');return;}addMeasurement(Math.abs(toInches(a.value,a.unit)-toInches(b.value,b.unit)),'in','Calc (A−B)');MEAS[MEAS.length-1].label='Edge drop-off';}
-function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Notes,Tag,Station,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),q(m.notes||''),m.tag||'',q(m.station||''),q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+'\n';});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
-function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();updateCalc();}
+function exportLog(){if(!MEAS.length){alert('No measurements');return;}dl(JSON.stringify({exportDate:new Date().toISOString(),measurements:MEAS},null,2),'disto_'+ds()+'.json','application/json');var csv='#,Value,Unit,Label,Notes,Station,Source,Lat,Lng,Time\n';MEAS.forEach(function(m){csv+=[m.num,m.value,m.unit,q(m.label),q(m.notes||''),q(m.station||''),q(m.source),m.lat||'',m.lng||'',m.ts].join(',')+'\n';});setTimeout(function(){dl(csv,'disto_'+ds()+'.csv','text/csv');},300);}
+function clearLog(){if(!MEAS.length)return;if(!confirm('Clear all '+MEAS.length+'?'))return;MEAS=[];_nextNum=1;save();renderLog();}
 function toggleDebug(){document.getElementById('debug-panel').classList.toggle('show');}
 function dbg(msg){var el=document.getElementById('debug-log');el.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';el.scrollTop=el.scrollHeight;console.log('[DISTO]',msg);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -438,15 +400,14 @@ function clearCalibrate(){
 async function onCalMeasurement(distM){
   var calIn=_calRef*39.3701;
   var measIn=distM*39.3701;
-  var dropIn=calIn-measIn;
-  dbg('Cal drop: ref '+calIn.toFixed(2)+' - meas '+measIn.toFixed(2)+' = '+dropIn.toFixed(2)+' in');
+  var dropIn=measIn-calIn;
+  dbg('Cal drop: meas '+measIn.toFixed(2)+' - ref '+calIn.toFixed(2)+' = '+dropIn.toFixed(2)+' in');
   var sta=curStation();
   var autoSta=document.getElementById('auto-station')&&document.getElementById('auto-station').checked;
   if(!autoSta){sta=await promptStation(sta);}
-  var lbl=(dropIn<0?'rise':'drop')+' (ref:'+calIn.toFixed(1)+'" B:'+measIn.toFixed(1)+'")';
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:Math.abs(dropIn),unit:'in',label:lbl,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Cal Drop',ts:new Date().toISOString(),rawM:distM,calRefM:_calRef});
-  save();renderLog();updateCalc();
-  document.getElementById('connect-status').textContent='Drop: '+Math.abs(dropIn).toFixed(2)+' in at Sta '+sta;
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropIn,unit:'in',label:'',notes:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:'Cal Drop',ts:new Date().toISOString(),rawM:distM,calRefM:_calRef});
+  save();renderLog();
+  document.getElementById('connect-status').textContent='Drop: '+dropIn.toFixed(2)+' in at Sta '+sta;
   setTimeout(function(){document.getElementById('log-area').scrollTop=99999;},50);
 }
 function parseStation(raw){
@@ -535,9 +496,9 @@ async function addSessionSample(distM){
   }
   if(!_sessionActive)return;
   var idx=_sessionSamples.length+1;
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+idx,ts:new Date().toISOString(),rawBM:distM,calRefM:aM,sessionId:_sessionId,sessionType:_sessionType});
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+idx,ts:new Date().toISOString(),rawBM:distM,calRefM:aM,sessionId:_sessionId,sessionType:_sessionType});
   _sessionSamples.push({drop:dropVal,unit:pu,station:sta});
-  save();renderLog();updateCalc();
+  save();renderLog();
   var btn=document.getElementById(_sessionBtnId);
   btn.textContent='⏹ '+_sessionType+' ('+_sessionSamples.length+')';
   var sign=dropM>=0?' ↓drop':' ↑rise';
@@ -592,9 +553,9 @@ function groupSelected(){
   grouped.forEach(function(m){m.sessionId=gid;m.sessionAvg=true;m.sessionType=groupType;});
   MEAS=[].concat(remaining.slice(0,insertAt),grouped,remaining.slice(insertAt));
   _selected={};
-  save();renderLog();updateCalc();updateSelBar();
+  save();renderLog();updateSelBar();
 }
-load();renderLog();updateCalc();startGPS();
+load();renderLog();startGPS();
 dbg('DISTO Logger ready.');
 </script>
 </body>
