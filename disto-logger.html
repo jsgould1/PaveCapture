@@ -36,6 +36,7 @@ select,input,textarea{font-size:16px !important;}
 #empty-state p{font-size:13px;line-height:1.6;max-width:420px;margin:0 auto;}
 .meas-row{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;margin-bottom:2px;display:flex;align-items:center;gap:6px;min-height:0;}
 .meas-row.tagged{border-color:var(--accent);}
+.meas-row .mr-chk{accent-color:var(--accent);flex-shrink:0;width:16px;height:16px;margin:0;cursor:pointer;}
 .meas-row .mr-num{color:var(--accent);font-size:11px;font-weight:800;flex-shrink:0;min-width:18px;text-align:right;}
 .meas-row .mr-value{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;flex-shrink:0;}
 .meas-row .mr-value .unit{font-size:11px;color:var(--muted);font-weight:600;margin-left:2px;}
@@ -109,7 +110,11 @@ select,input,textarea{font-size:16px !important;}
     <button id="edrop-btn" onclick="toggleSession('Edge Drop')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--accent));color:#fff;">📐 Edge Drop</button>
     <button id="curb-btn" onclick="toggleSession('Curb Reveal')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--blue));color:#fff;">📏 Curb Reveal</button>
     <button id="thick-btn" onclick="toggleSession('Thickness')" style="display:none;padding:10px 16px;border-radius:10px;border:none;font-size:13px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#a855f7,var(--accent));color:#fff;">📚 Thickness</button>
-    <label id="avg-chk-lbl" class="auto-chk" style="display:none;font-size:12px;font-weight:700"><input type="checkbox" id="avg-chk"> Avg</label>
+  </div>
+  <div id="sel-bar" style="display:none;background:var(--surface);padding:6px 16px;align-items:center;gap:10px;border-bottom:1px solid var(--accent);flex-shrink:0;">
+    <span id="sel-count" style="font-size:12px;font-weight:800;color:var(--accent)">0 selected</span>
+    <button onclick="groupSelected()" style="padding:8px 16px;border-radius:8px;border:none;font-size:12px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--accent));color:#fff;">📊 Group Data</button>
+    <button onclick="clearSelection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;">Clear</button>
   </div>
   <div id="station-bar">
     <span class="sta-label">Station:</span>
@@ -167,7 +172,8 @@ var _pendingMeasResolve=null,_edgeDropActive=false;
 var _calRef=null,_calActive=false;
 var _sessionActive=false,_sessionRef=null,_sessionType='',_sessionBtnId='';
 var _sessionSamples=[],_sessionGpsStart=null,_sessionStartSta='';
-var _sessionId='',_sessionAvg=false,_sessionPrompting=false;
+var _sessionId='',_sessionPrompting=false;
+var _selected={};
 var _lastGpsLat=null,_lastGpsLng=null,_stationFt=0;
 var DISTO_SVC='3ab10100-f831-4395-b29d-570977d5bf94';
 var DISTO_MEAS='3ab1010d-f831-4395-b29d-570977d5bf94';
@@ -220,12 +226,12 @@ async function connectDisto(){
     if(!_cmdChar){for(var wi=0;wi<allChars.length;wi++){if(allChars[wi].properties.writeWithoutResponse||allChars[wi].properties.write){_cmdChar=allChars[wi];dbg('⚠ Fallback write char: '+_cmdChar.uuid);document.getElementById('shoot-btn').classList.add('ready');break;}}}
     if(!_cmdChar)dbg('⚠ No writable char');
     _connected=true;
-    if(_cmdChar){document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('thick-btn').style.display='inline-flex';document.getElementById('avg-chk-lbl').style.display='inline-flex';document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');document.getElementById('laser-btn').style.display='';}
+    if(_cmdChar){document.getElementById('edrop-btn').style.display='inline-flex';document.getElementById('curb-btn').style.display='inline-flex';document.getElementById('thick-btn').style.display='inline-flex';document.getElementById('laser-btn2').style.display='inline-flex';document.getElementById('station-bar').classList.add('show');document.getElementById('laser-btn').style.display='';}
     updateConnectUI('connected','Connected — SHOOT, Edge Drop, or Curb Reveal');
   }catch(e){dbg('Failed: '+e.message);updateConnectUI('disconnected',e.name==='NotFoundError'?'Cancelled':'Failed: '+e.message);}
 }
-function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('avg-chk-lbl').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
-function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('avg-chk-lbl').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
+function disconnect(){if(_device&&_device.gatt&&_device.gatt.connected)_device.gatt.disconnect();_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Disconnected');dbg('Disconnected');}
+function onDisconnected(){_connected=false;_server=null;_cmdChar=null;document.getElementById('shoot-btn').classList.remove('ready');document.getElementById('edrop-btn').style.display='none';document.getElementById('curb-btn').style.display='none';document.getElementById('thick-btn').style.display='none';document.getElementById('laser-btn2').style.display='none';document.getElementById('station-bar').classList.remove('show');document.getElementById('laser-btn').style.display='none';updateConnectUI('disconnected','Connection lost');dbg('Disconnected');}
 async function shootDisto(){
   await sendDistocom('raiseEvent 10\r\n');
   await new Promise(function(r){setTimeout(r,600);});
@@ -312,6 +318,7 @@ function toInches(v,u){if(u==='in')return v;if(u==='ft')return v*12;if(u==='m')r
 function renderRow(m){
   var negStyle=(typeof m.value==='number'&&m.value<0)?'color:var(--red);':'';
   var h='<div class="meas-row'+((m.tag)?' tagged':'')+'">';
+  h+='<input type="checkbox" class="mr-chk" '+(_selected[m.id]?'checked':'')+' onchange="toggleSelect(\''+m.id+'\')">';
   h+='<div class="mr-num">'+m.num+'</div>';
   h+='<div class="mr-value" style="'+negStyle+'">'+formatVal(m.value,m.unit)+'<span class="unit">'+m.unit+'</span></div>';
   h+='<input class="mr-label" value="'+esc(m.label)+'" placeholder="Label…" onchange="updateLabel(\''+m.id+'\',this.value)">';
@@ -495,7 +502,6 @@ function toggleSession(type){
   _sessionRef=null;
   _sessionSamples=[];
   _sessionId='s'+Date.now();
-  _sessionAvg=!!(document.getElementById('avg-chk')&&document.getElementById('avg-chk').checked);
   _sessionPrompting=false;
   _sessionGpsStart=(_lat&&_lng)?{lat:_lat,lng:_lng}:null;
   _sessionStartSta=curStation();
@@ -503,8 +509,8 @@ function toggleSession(type){
   btn.textContent='⏹ End '+_sessionType;
   btn.style.background='var(--red)';btn.style.color='#fff';
   document.getElementById('shoot-btn').textContent='🎯 SHOOT (A ref)';
-  document.getElementById('connect-status').textContent=_sessionType+(_sessionAvg?' [AVG]':'')+' — aim at reference, then SHOOT';
-  dbg(_sessionType+' session '+_sessionId+(_sessionAvg?' (avg)':'')+' — awaiting A ref');
+  document.getElementById('connect-status').textContent=_sessionType+' — aim at reference, then SHOOT';
+  dbg(_sessionType+' session '+_sessionId+' — awaiting A ref');
 }
 function onSessionARef(distM){
   _sessionRef=distM;
@@ -530,7 +536,7 @@ async function addSessionSample(distM){
   }
   if(!_sessionActive)return;
   var idx=_sessionSamples.length+1;
-  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+idx,ts:new Date().toISOString(),rawBM:distM,calRefM:aM,sessionId:_sessionId,sessionType:_sessionType,sessionAvg:_sessionAvg});
+  MEAS.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,5),num:_nextNum++,value:dropVal,unit:pu,label:_sessionType,notes:'',tag:'',station:sta,lat:_lat?+_lat.toFixed(6):null,lng:_lng?+_lng.toFixed(6):null,source:_sessionType+' B#'+idx,ts:new Date().toISOString(),rawBM:distM,calRefM:aM,sessionId:_sessionId,sessionType:_sessionType});
   _sessionSamples.push({drop:dropVal,unit:pu,station:sta});
   save();renderLog();updateCalc();
   var btn=document.getElementById(_sessionBtnId);
@@ -565,55 +571,29 @@ function parseStationToFt(sta){
   if(p.length===2)return(parseInt(p[0],10)||0)*100+(parseInt(p[1],10)||0);
   return parseFloat(sta.replace(/[^0-9.]/g,''))||0;
 }
-function promptStationRange(startDef,endDef,gpsStart,gpsEndLat,gpsEndLng){
-  return new Promise(function(resolve){
-    var gpsEndSta='';
-    if(gpsStart&&gpsEndLat&&gpsEndLng){
-      var m=haversine(gpsStart.lat,gpsStart.lng,gpsEndLat,gpsEndLng);
-      gpsEndSta=fmtStation(parseStationToFt(startDef)+m*3.28084);
-    }
-    var overlay=document.createElement('div');
-    overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    var box=document.createElement('div');
-    box.style.cssText='background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:20px;width:320px;text-align:center;';
-    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--accent);margin-bottom:10px">Session Complete — Enter Stations</div>'
-      +'<div style="display:flex;gap:10px;margin-bottom:10px">'
-      +'<div style="flex:1"><div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">START STATION</div>'
-      +'<input id="ssr-start" type="tel" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:10px;font-size:18px;font-weight:900;text-align:center;background:var(--bg);border:2px solid var(--border);border-radius:10px;color:var(--text);" placeholder="0000">'
-      +'<div id="ssr-start-p" style="font-size:13px;font-weight:800;color:var(--accent);margin-top:4px;height:18px"></div></div>'
-      +'<div style="display:flex;align-items:center;padding-top:20px;font-size:18px;color:var(--muted)">→</div>'
-      +'<div style="flex:1"><div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">END STATION</div>'
-      +'<input id="ssr-end" type="tel" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:10px;font-size:18px;font-weight:900;text-align:center;background:var(--bg);border:2px solid var(--border);border-radius:10px;color:var(--text);" placeholder="0000">'
-      +'<div id="ssr-end-p" style="font-size:13px;font-weight:800;color:var(--accent);margin-top:4px;height:18px"></div></div>'
-      +'</div>'
-      +(gpsEndSta?'<button id="ssr-gps" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--blue);background:rgba(59,130,246,.15);color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px">📍 GPS end: '+gpsEndSta+'</button>':'')
-      +'<div style="display:flex;gap:8px;justify-content:center">'
-      +'<button id="ssr-ok" style="padding:12px 24px;border-radius:10px;border:none;font-size:14px;font-weight:900;cursor:pointer;background:var(--green);color:#000;">OK</button>'
-      +'<button id="ssr-skip" style="padding:12px 16px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--muted);border:1px solid var(--border);">Skip</button>'
-      +'</div>';
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    var si=document.getElementById('ssr-start'),ei=document.getElementById('ssr-end');
-    var sp=document.getElementById('ssr-start-p'),ep=document.getElementById('ssr-end-p');
-    var sd=(startDef||'').replace(/[^0-9]/g,''),ed=(endDef||'').replace(/[^0-9]/g,'');
-    si.value=sd;sp.textContent=parseStation(sd);
-    ei.value=ed;ep.textContent=parseStation(ed);
-    si.addEventListener('input',function(){sp.textContent=parseStation(si.value);});
-    ei.addEventListener('input',function(){ep.textContent=parseStation(ei.value);});
-    if(gpsEndSta){document.getElementById('ssr-gps').onclick=function(){var gd=gpsEndSta.replace(/[^0-9]/g,'');ei.value=gd;ep.textContent=gpsEndSta;};}
-    function finish(skip){
-      document.body.removeChild(overlay);
-      var s=parseStation(si.value)||startDef||'0+00';
-      var e=skip?'':parseStation(ei.value)||'';
-      document.getElementById('station-input').value=e||s;
-      resolve({start:s,end:e});
-    }
-    document.getElementById('ssr-ok').onclick=function(){finish(false);};
-    document.getElementById('ssr-skip').onclick=function(){finish(true);};
-    si.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();ei.focus();}});
-    ei.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();finish(false);}});
-    setTimeout(function(){si.focus();},100);
-  });
+function toggleSelect(id){_selected[id]=!_selected[id];if(!_selected[id])delete _selected[id];updateSelBar();}
+function selCount(){return Object.keys(_selected).length;}
+function updateSelBar(){var n=selCount();var bar=document.getElementById('sel-bar');bar.style.display=n>0?'flex':'none';document.getElementById('sel-count').textContent=n+' selected';}
+function clearSelection(){_selected={};renderLog();updateSelBar();}
+function groupSelected(){
+  var ids=Object.keys(_selected);
+  if(ids.length<2){alert('Select at least 2 rows to group');return;}
+  var gid='g'+Date.now();
+  var grouped=[],remaining=[];
+  var insertAt=0,foundFirst=false;
+  for(var i=0;i<MEAS.length;i++){
+    if(_selected[MEAS[i].id]){
+      if(!foundFirst){insertAt=remaining.length;foundFirst=true;}
+      grouped.push(MEAS[i]);
+    }else{remaining.push(MEAS[i]);}
+  }
+  var labels=grouped.map(function(m){return m.label||'';});
+  var uniq=labels.filter(function(v,i,a){return a.indexOf(v)===i;});
+  var groupType=(uniq.length===1&&uniq[0])?uniq[0]:'Group';
+  grouped.forEach(function(m){m.sessionId=gid;m.sessionAvg=true;m.sessionType=groupType;});
+  MEAS=[].concat(remaining.slice(0,insertAt),grouped,remaining.slice(insertAt));
+  _selected={};
+  save();renderLog();updateCalc();updateSelBar();
 }
 load();renderLog();updateCalc();startGPS();
 dbg('DISTO Logger ready.');
